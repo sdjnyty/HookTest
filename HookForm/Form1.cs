@@ -22,8 +22,10 @@ namespace HookForm
 
     private async void Form1_Load(object sender, EventArgs e)
     {
+      //var exe = @"c:\program files (x86)\age of empires ii\age2_x1\age2_x1.exe";
+      var exe = @"d:\hawkaoc\aoc\age2_x1\age2_x1.exe";
       var path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "injector.dll");
-      RemoteHooking.CreateAndInject(@"c:\program files (x86)\age of empires ii\age2_x1\age2_x1.exe", null, 0, path, path, out var pid);
+      RemoteHooking.CreateAndInject(exe, null, 0, path, path, out var pid);
       using (var pipe = new NamedPipeServerStream("HookPipe", PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous))
       {
         await Task.Factory.FromAsync(pipe.BeginWaitForConnection, pipe.EndWaitForConnection, null);

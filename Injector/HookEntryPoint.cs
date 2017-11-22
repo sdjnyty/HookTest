@@ -8,6 +8,8 @@ using System.IO;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Net;
+using System.Diagnostics;
+using System.Drawing;
 
 namespace YTY.HookTest
 {
@@ -39,12 +41,12 @@ namespace YTY.HookTest
       hPostQuitMessage.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hTextOut = LocalHook.Create(LocalHook.GetProcAddress("gdi32", "TextOutA"), new TextOutD(TextOutH), this);
       hTextOut.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hGetACP = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "GetACP"), new GetACPD(GetACPH), this);
-      hGetACP.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hLoadString = LocalHook.Create(LocalHook.GetProcAddress("user32", "LoadStringA"), new LoadStringD(LoadStringH), this);
-      hLoadString.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryD(LoadLibraryH), this);
-      hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hGetACP = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "GetACP"), new GetACPD(GetACPH), this);
+      //hGetACP.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hLoadString = LocalHook.Create(LocalHook.GetProcAddress("user32", "LoadStringA"), new LoadStringD(LoadStringH), this);
+      //hLoadString.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryD(LoadLibraryH), this);
+      //hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
       RemoteHooking.WakeUpProcess();
       Thread.Sleep(-1);
     }
@@ -84,9 +86,13 @@ namespace YTY.HookTest
     {
       var bytes = new byte[strLen];
       Marshal.Copy(pStr, bytes, 0, strLen);
-      _sw.WriteLine(BitConverter.ToString(bytes));
-      var str = Encoding.GetEncoding(949).GetString(bytes);
-      _sw.WriteLine($"[TextOut]\t{xStart}\t{yStart}\t{str}");
+      //_sw.WriteLine(BitConverter.ToString(bytes));
+      var str = Encoding.GetEncoding(936).GetString(bytes);
+      var g = Graphics.FromHdc(dc);
+      var color = GetTextColor(dc);
+      var font = Font.FromHdc(dc);
+      g.DrawString(str,new Font("微软雅黑", font.Size,font.Style,font.Unit,font.GdiCharSet,font.GdiVerticalFont), new SolidBrush(color.ToColor(0xcc)), xStart, yStart);
+      return true;
       return TextOutW(dc, xStart, yStart, str, str.Length);
     }
 
@@ -204,6 +210,15 @@ namespace YTY.HookTest
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate IntPtr LoadLibraryD(string fileName);
+
+    [DllImport("gdi32")]
+    static extern IntPtr GetCurrentObject(IntPtr dc, OBJ_ objectType);
+
+    [DllImport("gdi32")]
+    static extern int GetObject(IntPtr obj, int buffer, IntPtr objInfo);
+
+    [DllImport("gdi32")]
+    static extern COLORREF GetTextColor(IntPtr dc);
   }
 
   [StructLayout(LayoutKind.Sequential)]
@@ -213,5 +228,55 @@ namespace YTY.HookTest
     public ushort Port;
     public uint Addr;
     public long Zero;
+  }
+
+  public enum OBJ_ : uint
+  {
+    OBJ_PEN=1,
+    OBJ_BRUSH,
+    OBJ_DC,
+    OBJ_METADC,
+    OBJ_PAL,
+    OBJ_FONT,
+    OBJ_BITMAP,
+    OBJ_REGION,
+    OBJ_METAFILE,
+    OBJ_MEMDC,
+    OBJ_EXTPEN,
+    OBJ_ENHMETADC,
+    OBJ_ENHMETAFILE,
+    OBJ_COLORSPACE,
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct LOGBRUSH
+  {
+    public uint Style;
+    public COLORREF Color;
+    public long Hatch;
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct COLORREF
+  {
+    public byte Red;
+    public byte Green;
+    public byte Blue;
+    public byte Zero;
+
+    public Color ToColor()
+    {
+      return Color.FromArgb(Red, Green, Blue);
+    }
+
+    public Color ToColor(byte alpha)
+    {
+      return Color.FromArgb(alpha, Red, Green, Blue);
+    }
+
+    public override string ToString()
+    {
+      return ToColor().ToString();
+    }
   }
 }
