@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Net;
 
 namespace YTY.HookTest
 {
@@ -11,6 +12,11 @@ namespace YTY.HookTest
     public ushort Port;
     public uint Addr;
     public long Zero;
+
+    public IPEndPoint ToIPEndPoint()
+    {
+      return new IPEndPoint(new IPAddress(Addr), (int)(((uint)IPAddress.NetworkToHostOrder(Port)) >> 16));
+    }
   }
 
   [StructLayout(LayoutKind.Sequential)]

@@ -52,8 +52,10 @@ namespace YTY.HookTest
       hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hDrawTextA = LocalHook.Create(LocalHook.GetProcAddress("user32", "DrawTextA"), new DrawTextAD(DrawTextH), this);
       //hDrawTextA.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(acceptH), this);
-      //hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(acceptH), this);
+      hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
+      hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
       Task.Run(() =>
       {
         while (true)
@@ -135,9 +137,9 @@ namespace YTY.HookTest
 
     private int LoadStringH(IntPtr instance, uint id, IntPtr buffer, int bufferMax)
     {
-      var sb = new StringBuilder(bufferMax-1);
+      var sb = new StringBuilder(bufferMax - 1);
       var ret = DllImports.LoadStringA(instance, id, sb, bufferMax);
-      var bytes = Encoding.Default.GetBytes(sb.ToString()+'\0');
+      var bytes = Encoding.Default.GetBytes(sb.ToString() + '\0');
       Marshal.Copy(bytes, 0, buffer, bytes.Length);
       return ret;
 
@@ -241,7 +243,15 @@ namespace YTY.HookTest
 
     private IntPtr acceptH(IntPtr socket, out sockaddr_in addr, out int addrLen)
     {
-      return DllImports.accept(socket, out addr, out addrLen);
+      var ret = DllImports.accept(socket, out addr, out addrLen);
+      _q.Add($"[accept]{socket}\t{addr.ToIPEndPoint()}");
+      return ret;
+    }
+
+    private int BindH(IntPtr socket, ref sockaddr_in addr, int addrLen)
+    {
+      _q.Add($"[bind]{socket}\t{addr.ToIPEndPoint()}");
+      return DllImports.bind(socket,ref addr, addrLen);
     }
   }
 }

@@ -33,4 +33,7 @@ namespace YTY.HookTest
 
   [UnmanagedFunctionPointer(CallingConvention.Winapi)]
   internal delegate IntPtr AcceptD(IntPtr socket, out sockaddr_in addr, out int addrLen);
+
+  [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+  internal delegate int BindD(IntPtr socket, ref sockaddr_in addr, int addrLen);
 }

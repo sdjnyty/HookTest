@@ -7,7 +7,6 @@ namespace YTY.HookTest
 {
   internal static class DllImports
   {
-
     [DllImport("ws2_32")]
     internal static extern int send(IntPtr socket, byte[] buff, int len, int flags);
 
@@ -55,5 +54,9 @@ namespace YTY.HookTest
 
     [DllImport("ws2_32")]
     internal static extern IntPtr accept(IntPtr socket, out sockaddr_in addr, out int addrLen);
+
+    [DllImport("ws2_32")]
+    internal static extern int bind(IntPtr socket, ref sockaddr_in addr, int addrLen);
+
   }
 }
