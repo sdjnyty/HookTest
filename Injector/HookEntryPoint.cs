@@ -12,18 +12,22 @@ using System.Runtime.InteropServices;
 using System.Net;
 using System.Diagnostics;
 using System.Drawing;
+using System.Net.Sockets;
+using static YTY.HookTest.Delegates;
 
 namespace YTY.HookTest
 {
-  public class HookEntryPoint : IEntryPoint
+  public unsafe class HookEntryPoint : IEntryPoint
   {
     private StreamWriter _sw;
     private IniParser.Model.KeyDataCollection _kvs;
     private readonly HashSet<IntPtr> _dlls = new HashSet<IntPtr>();
     private readonly BlockingCollection<string> _q = new BlockingCollection<string>();
+    private ConcurrentDictionary<IntPtr, Socket> _sockets = new ConcurrentDictionary<IntPtr, Socket>();
 
     public HookEntryPoint(RemoteHooking.IContext context)
     {
+
     }
 
     public void Run(RemoteHooking.IContext context)
@@ -34,12 +38,6 @@ namespace YTY.HookTest
       pipe.Connect();
       _sw = new StreamWriter(pipe);
       _sw.AutoFlush = true;
-      //var hSend = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "send"), new SendD(SendH), this);
-      //hSend.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hSendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "sendto"), new SendToD(SendToH), this);
-      //hSendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hRecv = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recv"), new RecvD(RecvH), this);
-      //hRecv.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hPostQuitMessage = LocalHook.Create(LocalHook.GetProcAddress("user32", "PostQuitMessage"), new PostQuitMessageD(PostQuitMessageH), this);
       //hPostQuitMessage.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hTextOut = LocalHook.Create(LocalHook.GetProcAddress("gdi32", "TextOutA"), new TextOutAD(TextOutH), this);
@@ -48,68 +46,59 @@ namespace YTY.HookTest
       //hGetACP.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hLoadString = LocalHook.Create(LocalHook.GetProcAddress("user32", "LoadStringA"), new LoadStringD(LoadStringH), this);
       //hLoadString.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryAD(LoadLibraryH), this);
-      hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryAD(LoadLibraryH), this);
+      //hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hDrawTextA = LocalHook.Create(LocalHook.GetProcAddress("user32", "DrawTextA"), new DrawTextAD(DrawTextH), this);
       //hDrawTextA.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(acceptH), this);
-      hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(acceptH), this);
+      //hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "socket"), new SocketD(SocketH), this);
+      hSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hCloseSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "closesocket"), new CloseSocketD(CloseSocketH), this);
+      hCloseSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
       hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hConnect = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "connect"), new ConnectD(ConnectH), this);
+      hConnect.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hGetPeerName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getpeername"), new GetPeerNameD(GetPeerNameH), this);
+      hGetPeerName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hGetSockName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getsockname"), new GetSockNameD(GetSockNameH), this);
+      hGetSockName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hSend = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "send"), new SendD(SendH), this);
+      //hSend.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hSendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "sendto"), new SendToD(SendToH), this);
+      //hSendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hRecv = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recv"), new RecvD(RecvH), this);
+      //hRecv.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hRecvFrom = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recvfrom"), new RecvFromD(RecvFromH), this);
+      //hRecvFrom.ThreadACL.SetExclusiveACL(new[] { 0 });
+
       Task.Run(() =>
       {
         while (true)
         {
           _q.TryTake(out var s, -1);
-          _sw.WriteLine(s);
+          _sw.Write(s);
         }
       });
       RemoteHooking.WakeUpProcess();
       Thread.Sleep(-1);
     }
 
-    private int SendH(IntPtr socket, byte[] buff, int len, int flags)
-    {
-      //_q.Add($"[send]\t{socket}\t{len}\t{flags}");
-      //_q.Add(buff);
-      //_q.Add("================");
-      return DllImports.send(socket, buff, len, flags);
-    }
-    private int SendToH(IntPtr socket, byte[] buff, int len, int flags, ref sockaddr_in to, int toLen)
-    {
-      //var ip = new IPEndPoint(new IPAddress(to.Addr),(int)(((uint) IPAddress.NetworkToHostOrder( to.Port))>>16));
-      //_q.Add($"[sendto]\t{socket}\t{len}\t{flags}\t{ip}");
-      //_q.Add(buff);
-      //_q.Add("================");
-      return DllImports.sendto(socket, buff, len, flags, ref to, toLen);
-    }
-
-    private int RecvH(IntPtr socket, byte[] buff, int len, int flags)
-    {
-      var ret = DllImports.recv(socket, buff, len, flags);
-      //_q.Add($"[recv]\t{socket}\t{len}\t{flags}\tret={ret}");
-      //_q.Add(Marshal.PtrToStringAnsi(buff, ret));
-      //_q.Add("================");
-      return ret;
-    }
-
     private void PostQuitMessageH(int exitCode)
     {
-      _q.Add("[PostQuitMessage]");
+      _q.Add("[PostQuitMessage]\n");
       DllImports.PostQuitMessage(exitCode);
     }
 
-    private bool TextOutH(IntPtr dc, int xStart, int yStart, string str, int strLen)
+    private bool TextOutH(IntPtr dc, int xStart, int yStart, sbyte* pString, int strLen)
     {
-      //var bytes = new byte[strLen];
-      //Marshal.Copy(pStr, bytes, 0, strLen);
-      //_q.Add(BitConverter.ToString(bytes));
-      //var str = Encoding.GetEncoding(936).GetString(bytes);
       var g = Graphics.FromHdc(dc);
       var align = DllImports.GetTextAlign(dc);
       var color = DllImports.GetTextColor(dc).ToColor();
       var font = Font.FromHdc(dc);
       var point = new PointF(xStart, yStart);
+      var str = new string(pString);
       StringFormat sf;
       if (align.HasFlag(TA_.TA_BOTTOM))
       {
@@ -124,23 +113,22 @@ namespace YTY.HookTest
         sf = StringFormat.GenericDefault;
       }
       g.DrawString(str, font, new SolidBrush(color), point, sf);
-      _q.Add($"[TextOutA]{font}\t{color}\t{point}\t{align}\t{str}");
+      _q.Add($"[TextOutA]{font}\t{color}\t{point}\t{align}\t{str}\n");
       return true;
       //return TextOutW(dc, xStart, yStart, str, str.Length);
     }
 
     private uint GetACPH()
     {
-      _q.Add($"[GetACP]\t{DllImports.GetACP()}");
+      _q.Add($"[GetACP]{DllImports.GetACP()}\n");
       return 1252;
     }
 
-    private int LoadStringH(IntPtr instance, uint id, IntPtr buffer, int bufferMax)
+    private int LoadStringH(IntPtr instance, uint id, sbyte* buffer, int bufferMax)
     {
-      var sb = new StringBuilder(bufferMax - 1);
-      var ret = DllImports.LoadStringA(instance, id, sb, bufferMax);
-      var bytes = Encoding.Default.GetBytes(sb.ToString() + '\0');
-      Marshal.Copy(bytes, 0, buffer, bytes.Length);
+      _q.Add($"[LoadStringA]{id}\t");
+      var ret = DllImports.LoadStringA(instance, id, buffer, bufferMax);
+      _q.Add($"{new string(buffer)}\n");
       return ret;
 
       #region get unicode
@@ -171,13 +159,13 @@ namespace YTY.HookTest
       //if (_kvs.ContainsKey(id.ToString()))
       //{
       //  var str = _kvs[id.ToString()].Replace(@"\n", "\n") + '\0';
-      //  //_q.Add(str);
+      //  //_q.Add($"{str}\n");
       //  var bytes = Encoding.GetEncoding(936).GetBytes(str);
 
       //  if (bufferMax > bytes.Length)
       //  {
       //    Marshal.Copy(bytes, 0, buffer, bytes.Length);
-      //    //_q.Add($"[LoadStringA]\t{id}\t{Marshal.PtrToStringUni(buffer)}\t{bufferMax}");
+      //    //_q.Add($"[LoadStringA]\t{id}\t{Marshal.PtrToStringUni(buffer)}\t{bufferMax}\n");
       //    return bytes.Length;
       //  }
       //  else
@@ -193,9 +181,10 @@ namespace YTY.HookTest
       #endregion
     }
 
-    private IntPtr LoadLibraryH(string fileName)
+    private IntPtr LoadLibraryH(sbyte* pFileName)
     {
-      //_q.Add($"[LoadLibraryA]\t{fileName}");
+      var fileName = new string(pFileName);
+      _q.Add($"[LoadLibraryA]{fileName}\n");
       var ret = NativeAPI.LoadLibrary(fileName);
       if (fileName.Equals("language.dll", StringComparison.InvariantCultureIgnoreCase)
         || fileName.Equals("language_x1.dll", StringComparison.InvariantCultureIgnoreCase)
@@ -209,11 +198,12 @@ namespace YTY.HookTest
     private readonly StringFormat SF_Bottom = new StringFormat { LineAlignment = StringAlignment.Far };
     private readonly StringFormat SF_Right = new StringFormat { Alignment = StringAlignment.Far };
 
-    private int DrawTextH(IntPtr dc, string str, int count, ref RECT rect, DT_ format)
+    private int DrawTextH(IntPtr dc, sbyte* pStr, int count, RECT* rect, DT_ format)
     {
       var g = Graphics.FromHdc(dc);
       var font = Font.FromHdc(dc);
-      var rectF = rect.ToRectangleF();
+      var str = new string(pStr);
+      var rectF = rect->ToRectangleF();
       var color = DllImports.GetTextColor(dc).ToColor();
       StringFormat sf;
       if (format.HasFlag(DT_.DT_BOTTOM))
@@ -228,30 +218,158 @@ namespace YTY.HookTest
       {
         sf = StringFormat.GenericDefault;
       }
-      //if ((int)rectF.X == 1 && (int)rectF.Y == 1)
-      //{
-      //  color = GetTextColor(dc).ToColor();
-      //}
-      //else
-      //{
-      //  color = GetTextColor(dc).ToColor(0x7f);
-      //}
       g.DrawString(str, font, new SolidBrush(color), rectF, sf);
-      _q.Add($"[DrawTextA]{format}\t{font}\t{color}\t{rectF}\t{str}");
+      _q.Add($"[DrawTextA]{format}\t{font}\t{color}\t{rectF}\t{str}\n");
       return (int)rectF.Height;
     }
 
-    private IntPtr acceptH(IntPtr socket, out sockaddr_in addr, out int addrLen)
+    private IntPtr acceptH(IntPtr socket, sockaddr_in* addr, int* addrLen)
     {
-      var ret = DllImports.accept(socket, out addr, out addrLen);
-      _q.Add($"[accept]{socket}\t{addr.ToIPEndPoint()}");
+      _q.Add($"[accept]{socket}\t");
+      var ret = DllImports.accept(socket, addr, addrLen);
+      _q.Add($"{addr->ToIPEndPoint()}\n");
       return ret;
     }
 
-    private int BindH(IntPtr socket, ref sockaddr_in addr, int addrLen)
+    private int BindH(IntPtr socket, sockaddr_in* addr, int addrLen)
     {
-      _q.Add($"[bind]{socket}\t{addr.ToIPEndPoint()}");
-      return DllImports.bind(socket,ref addr, addrLen);
+      _q.Add($"[bind]{socket}\t{addr->ToIPEndPoint()}\n");
+      return DllImports.bind(socket, addr, addrLen);
+    }
+
+    private int ConnectH(IntPtr socket, sockaddr_in* addr, int addrLen)
+    {
+      var ep = addr->ToIPEndPoint();
+      _q.Add($"[connect]{socket}\t{ep}\n");
+      try
+      {
+        _sockets[socket].Connect(ep);
+        return (int)SocketError.Success;
+      }
+      catch (SocketException ex)
+      {
+        _q.Add($"{ex}\n");
+        return (int)ex.SocketErrorCode;
+      }
+      return DllImports.connect(socket, addr, addrLen);
+    }
+
+    private int GetPeerNameH(IntPtr socket, sockaddr_in* addr, int* addrLen)
+    {
+      _q.Add($"[getpeername]{socket}\t");
+      var rep = _sockets[socket].RemoteEndPoint.ToBytes();
+      for (var i = 0; i < rep.Length; i++)
+      {
+        ((byte*)addr)[i] = rep[i];
+      }
+      *addrLen = rep.Length;
+      _q.Add($"{_sockets[socket].RemoteEndPoint}\n");
+      return (int)SocketError.Success;
+      var ret = DllImports.getpeername(socket, addr, addrLen);
+      _q.Add($"[getpeername]{socket}\t{addr->ToIPEndPoint()}");
+      return ret;
+    }
+
+    private int GetSockNameH(IntPtr socket, sockaddr_in* addr, int* addrLen)
+    {
+      _q.Add($"[getsockname]{socket}\t");
+      try
+      {
+        var rep = _sockets[socket].LocalEndPoint.ToBytes();
+        _q.Add(BitConverter.ToString(rep));
+        for (var i = 0; i < rep.Length; i++)
+        {
+          ((byte*) addr)[i] = rep[i];
+        }
+        *addrLen = rep.Length;
+        _q.Add($"{_sockets[socket].LocalEndPoint}\n");
+        return (int) SocketError.Success;
+      }
+      catch (SocketException ex)
+      {
+        _q.Add($"{ex}\n");
+        return -1; //(int)ex.SocketErrorCode;
+      }
+      catch (NullReferenceException)
+      {
+        _q.Add("\n");
+        return (int)SocketError.InvalidArgument;
+      }
+      var ret = DllImports.getsockname(socket, addr, addrLen);
+      _q.Add($"[getsockname]={ret}\t{socket}\t{addr->ToIPEndPoint()}");
+      return ret;
+    }
+
+    private int CloseSocketH(IntPtr socket)
+    {
+      if (_sockets.TryRemove(socket, out var s))
+      {
+        _q.Add($"[closesocket]{s.Handle}\n");
+        s.Close();
+        return (int)SocketError.Success;
+      }
+      else
+      {
+        return (int)SocketError.NotSocket;
+      }
+    }
+
+    private int SendH(IntPtr socket, sbyte* buff, int len, int flags)
+    {
+      var str = new string(buff);
+      _q.Add($"[send]{socket}\t{len}\t{flags}");
+      _q.Add(str);
+      return DllImports.send(socket, buff, len, flags);
+    }
+    private int SendToH(IntPtr socket, sbyte* buff, int len, int flags, sockaddr_in* to, int toLen)
+    {
+      var str = new string(buff);
+      _q.Add($"[sendto]{socket}\t{len}\t{flags}\t{to->ToIPEndPoint()}");
+      _q.Add(str);
+      return DllImports.sendto(socket, buff, len, flags, to, toLen);
+    }
+
+    private int RecvH(IntPtr socket, sbyte* buff, int len, int flags)
+    {
+      var ret = DllImports.recv(socket, buff, len, flags);
+      var str = new string(buff);
+      _q.Add($"[recv]={ret}\t{socket}\t{flags}");
+      _q.Add(str);
+      return ret;
+    }
+
+    private int RecvFromH(IntPtr socket, sbyte* buff, int len, int flags, sockaddr_in* from, int* fromLen)
+    {
+      var ret = DllImports.recvfrom(socket, buff, len, flags, from, fromLen);
+      var str = new string(buff);
+      _q.Add($"[recv]={ret}\t{socket}\t{len}\t{flags}\t{from->ToIPEndPoint()}");
+      _q.Add(str);
+      return ret;
+    }
+
+    private IntPtr SocketH(AddressFamily af, SocketType type, ProtocolType protocol)
+    {
+      _q.Add($"[socket]{af}\t{type}\t{protocol}\t");
+      try
+      {
+        if (type == SocketType.Stream)
+        {
+          protocol = ProtocolType.Tcp;
+        }
+        else if (type == SocketType.Dgram)
+        {
+          protocol = ProtocolType.Udp;
+        }
+        var s = new Socket(af, type, protocol);
+
+        _q.Add($"{s.Handle}\t{_sockets.TryAdd(s.Handle, s)}\n");
+        return s.Handle;
+      }
+      catch (SocketException ex)
+      {
+        _q.Add(ex.ToString());
+        return DllImports.INVALID_SOCKET;
+      }
     }
   }
 }
