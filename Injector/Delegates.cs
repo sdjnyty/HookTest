@@ -56,5 +56,11 @@ namespace YTY.HookTest
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate IntPtr SocketD(AddressFamily af, SocketType type, ProtocolType protocol);
+
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    internal delegate int DirectPlayCreateD(Guid* pGuid, void** ppDp, IntPtr pUnk);
+
+    //[UnmanagedFunctionPointer ( CallingConvention.Winapi)]
+    //internal delegate int 
   }
 }
