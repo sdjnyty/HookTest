@@ -72,8 +72,10 @@ namespace YTY.HookTest
       //hRecv.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hRecvFrom = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recvfrom"), new RecvFromD(RecvFromH), this);
       //hRecvFrom.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hDirectPlayCreate = LocalHook.Create(LocalHook.GetProcAddress("dplayx", "DirectPlayCreate"), new DirectPlayCreateD(DirectPlayCreateH), this);
-      hDirectPlayCreate.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hDirectPlayCreate = LocalHook.Create(LocalHook.GetProcAddress("dplayx", "DirectPlayCreate"), new DirectPlayCreateD(DirectPlayCreateH), this);
+      //hDirectPlayCreate.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hCoCreateInstance = LocalHook.Create(LocalHook.GetProcAddress("ole32", "CoCreateInstance"), new CoCreateInstanceD(CoCreateInstanceH), this);
+      hCoCreateInstance.ThreadACL.SetExclusiveACL(new[] { 0 });
       Task.Run(() =>
       {
         while (true)
@@ -280,11 +282,11 @@ namespace YTY.HookTest
         _q.Add(BitConverter.ToString(rep));
         for (var i = 0; i < rep.Length; i++)
         {
-          ((byte*) addr)[i] = rep[i];
+          ((byte*)addr)[i] = rep[i];
         }
         *addrLen = rep.Length;
         _q.Add($"{_sockets[socket].LocalEndPoint}\n");
-        return (int) SocketError.Success;
+        return (int)SocketError.Success;
       }
       catch (SocketException ex)
       {
@@ -375,11 +377,26 @@ namespace YTY.HookTest
 
     private int DirectPlayCreateH(Guid* pGuid, void** ppDp, IntPtr pUnk)
     {
-      var ret=DllImports.DirectPlayCreate(pGuid, ppDp, pUnk)&0x0000ffff;
+      var ret = DllImports.DirectPlayCreate(pGuid, ppDp, pUnk) & 0x0000ffff;
       if (*pGuid == DllImports.DPSPGUID_TCPIP)
       {
         //var obj=Marshal.GetObjectForIUnknown(new IntPtr( ppDp.ToPointer()));
-        _q.Add($"[DirectPlayCreate]={ret}\t{*pGuid}\t{**(byte **)ppDp }\t{pUnk}\n");
+        _q.Add($"[DirectPlayCreate]={ret}\t{*pGuid}\t{**(byte**)ppDp }\t{pUnk}\n");
+      }
+      return ret;
+    }
+
+    private uint CoCreateInstanceH(Guid* clsid, IntPtr pUnkOuter, int clsContext, Guid* iid, int** ppv)
+    {
+      var ret = DllImports.CoCreateInstance(clsid, pUnkOuter, clsContext, iid, ppv);
+      if (*iid == DllImports.IID_IDirectPlay4)
+      {
+        var p =(int*) new IntPtr( **ppv).ToPointer();
+        _q.Add($"[CoCreateInstance]{*clsid}\t{pUnkOuter}\t{clsContext}\t{*iid}\t{new IntPtr(p).ToString("X")}\n");
+        for(var i=0;i<10;i++)
+        {
+          _q.Add($" {new IntPtr( *p++).ToString("X")}\n");
+        }
       }
       return ret;
     }
