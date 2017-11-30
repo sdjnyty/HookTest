@@ -79,5 +79,14 @@ namespace YTY.HookTest
     internal static extern int DirectPlayCreate(Guid* pGuid, void** ppDp, IntPtr pUnk);
 
     internal static Guid DPSPGUID_TCPIP =new Guid(0x36E95EE0, 0x8577, 0x11cf, 0x96, 0xc, 0x0, 0x80, 0xc7, 0x53, 0x4e, 0x82);
+
+    [DllImport("ws2_32")]
+    internal static extern HostEnt* gethostbyname(sbyte* name);
+
+    [DllImport("ws2_32")]
+    internal static extern int gethostname(sbyte* name, int nameLen);
+
+    [DllImport("ws2_32")]
+    internal static extern int listen(IntPtr socket, int backlog);
   }
 }

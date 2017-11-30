@@ -69,4 +69,14 @@ namespace YTY.HookTest
       return RectangleF.FromLTRB(Left, Top, Right, Bottom);
     }
   }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public unsafe struct HostEnt
+  {
+    public sbyte* Name;
+    public sbyte** Aliases;
+    public short AddrType;
+    public short Length;
+    public int** AddrList;
+  }
 }

@@ -24,6 +24,8 @@ namespace YTY.HookTest
     private readonly HashSet<IntPtr> _dlls = new HashSet<IntPtr>();
     private readonly BlockingCollection<string> _q = new BlockingCollection<string>();
     private ConcurrentDictionary<IntPtr, Socket> _sockets = new ConcurrentDictionary<IntPtr, Socket>();
+    private string _hostName;
+    private int _ip = BitConverter.ToInt32(new byte[] { 10, 11, 12, 13 }, 0);
 
     public HookEntryPoint(RemoteHooking.IContext context)
     {
@@ -52,12 +54,12 @@ namespace YTY.HookTest
       //hDrawTextA.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(acceptH), this);
       //hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "socket"), new SocketD(SocketH), this);
-      //hSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hCloseSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "closesocket"), new CloseSocketD(CloseSocketH), this);
-      //hCloseSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
-      //hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "socket"), new SocketD(SocketH), this);
+      hSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hCloseSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "closesocket"), new CloseSocketD(CloseSocketH), this);
+      hCloseSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
+      hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hConnect = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "connect"), new ConnectD(ConnectH), this);
       //hConnect.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hGetPeerName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getpeername"), new GetPeerNameD(GetPeerNameH), this);
@@ -66,14 +68,20 @@ namespace YTY.HookTest
       //hGetSockName.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hSend = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "send"), new SendD(SendH), this);
       //hSend.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hSendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "sendto"), new SendToD(SendToH), this);
-      //hSendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hSendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "sendto"), new SendToD(SendToH), this);
+      hSendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hRecv = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recv"), new RecvD(RecvH), this);
       //hRecv.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hRecvFrom = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recvfrom"), new RecvFromD(RecvFromH), this);
       //hRecvFrom.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hDirectPlayCreate = LocalHook.Create(LocalHook.GetProcAddress("dplayx", "DirectPlayCreate"), new DirectPlayCreateD(DirectPlayCreateH), this);
-      hDirectPlayCreate.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hDirectPlayCreate = LocalHook.Create(LocalHook.GetProcAddress("dplayx", "DirectPlayCreate"), new DirectPlayCreateD(DirectPlayCreateH), this);
+      //hDirectPlayCreate.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hGetHostByName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostbyname"), new GetHostByNameD(GetHostByNameH), this);
+      hGetHostByName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hGetHostName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostname"), new GetHostNameD(GetHostNameH), this);
+      hGetHostName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hListen = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "listen"), new ListenD(ListenH), this);
+      hListen.ThreadACL.SetExclusiveACL(new[] { 0 });
       Task.Run(() =>
       {
         while (true)
@@ -234,8 +242,23 @@ namespace YTY.HookTest
 
     private int BindH(IntPtr socket, sockaddr_in* addr, int addrLen)
     {
-      _q.Add($"[bind]{socket}\t{addr->ToIPEndPoint()}\n");
-      return DllImports.bind(socket, addr, addrLen);
+      //var ret = DllImports.bind(socket, addr, addrLen);
+      //if (ret == 0)
+      //{
+      //  _q.Add($"[bind]{socket}\t{addr->}\n");
+      //}
+      //return ret;
+      try
+      {
+        var s = _sockets[socket];
+        s.Bind(addr->ToIPEndPoint());
+        _q.Add($"[bind ]\t{s.Handle}\t{s.ProtocolType}\t{s.LocalEndPoint}\n");
+        return (int) SocketError.Success;
+      }
+      catch
+      {
+        return (int) SocketError.SocketError;
+      }
     }
 
     private int ConnectH(IntPtr socket, sockaddr_in* addr, int addrLen)
@@ -280,11 +303,11 @@ namespace YTY.HookTest
         _q.Add(BitConverter.ToString(rep));
         for (var i = 0; i < rep.Length; i++)
         {
-          ((byte*) addr)[i] = rep[i];
+          ((byte*)addr)[i] = rep[i];
         }
         *addrLen = rep.Length;
         _q.Add($"{_sockets[socket].LocalEndPoint}\n");
-        return (int) SocketError.Success;
+        return (int)SocketError.Success;
       }
       catch (SocketException ex)
       {
@@ -305,7 +328,7 @@ namespace YTY.HookTest
     {
       if (_sockets.TryRemove(socket, out var s))
       {
-        _q.Add($"[closesocket]{s.Handle}\n");
+        _q.Add($"[close]\t{s.Handle}\n");
         s.Close();
         return (int)SocketError.Success;
       }
@@ -324,6 +347,19 @@ namespace YTY.HookTest
     }
     private int SendToH(IntPtr socket, sbyte* buff, int len, int flags, sockaddr_in* to, int toLen)
     {
+      try
+      {
+        var y = new byte[len];
+        Marshal.Copy(new IntPtr(buff), y, 0, len);
+        var s = _sockets[socket];
+        var ret=s.SendTo(y, to->ToIPEndPoint());
+        _q.Add($"[sndto]{socket}\t{s.ProtocolType}\t{s.LocalEndPoint}\t{to->ToIPEndPoint()}\t{BitConverter.ToString(y)}\n");
+        return ret;
+      }
+      catch
+      {
+        return -1;
+      }
       var str = new string(buff);
       _q.Add($"[sendto]{socket}\t{len}\t{flags}\t{to->ToIPEndPoint()}");
       _q.Add(str);
@@ -350,38 +386,73 @@ namespace YTY.HookTest
 
     private IntPtr SocketH(AddressFamily af, SocketType type, ProtocolType protocol)
     {
-      _q.Add($"[socket]{af}\t{type}\t{protocol}\t");
       try
       {
-        if (type == SocketType.Stream)
-        {
-          protocol = ProtocolType.Tcp;
-        }
-        else if (type == SocketType.Dgram)
+        if (type == SocketType.Dgram)
         {
           protocol = ProtocolType.Udp;
         }
+        else if (type == SocketType.Stream)
+        {
+          protocol = ProtocolType.Tcp;
+        }
         var s = new Socket(af, type, protocol);
-
-        _q.Add($"{s.Handle}\t{_sockets.TryAdd(s.Handle, s)}\n");
+        _sockets.TryAdd(s.Handle, s);
+        _q.Add($"[sock ]\t{s.Handle}\t{s.ProtocolType}\n");
         return s.Handle;
       }
-      catch (SocketException ex)
+      catch (SocketException)
       {
-        _q.Add(ex.ToString());
         return DllImports.INVALID_SOCKET;
       }
     }
 
     private int DirectPlayCreateH(Guid* pGuid, void** ppDp, IntPtr pUnk)
     {
-      var ret=DllImports.DirectPlayCreate(pGuid, ppDp, pUnk)&0x0000ffff;
+      var ret = DllImports.DirectPlayCreate(pGuid, ppDp, pUnk) & 0x0000ffff;
       if (*pGuid == DllImports.DPSPGUID_TCPIP)
       {
         //var obj=Marshal.GetObjectForIUnknown(new IntPtr( ppDp.ToPointer()));
-        _q.Add($"[DirectPlayCreate]={ret}\t{*pGuid}\t{**(byte **)ppDp }\t{pUnk}\n");
+        _q.Add($"[DirectPlayCreate]={ret}\t{*pGuid}\t{**(byte**)ppDp }\t{pUnk}\n");
       }
       return ret;
+    }
+
+    private HostEnt* GetHostByNameH(sbyte* name)
+    {
+      var ret = DllImports.gethostbyname(name);
+      if (new string(name) == _hostName)
+      {
+        **ret->AddrList = _ip;
+        _q.Add($"[gethostbyname]\n");
+      }
+      return ret;
+    }
+
+    private int GetHostNameH(sbyte* name, int nameLen)
+    {
+      var ret = DllImports.gethostname(name, nameLen);
+      if (ret == 0)
+      {
+        _hostName = new string(name);
+        _q.Add($"[gethostname]{_hostName}\n");
+      }
+      return ret;
+    }
+
+    private int ListenH(IntPtr socket, int backlog)
+    {
+      try
+      {
+        var s = _sockets[socket];
+        s.Listen(backlog);
+        _q.Add($"[listn]\t{socket}\t{s.ProtocolType}\t{backlog}\n");
+        return (int) SocketError.Success;
+      }
+      catch
+      {
+        return (int) SocketError.SocketError;
+      }
     }
   }
 }

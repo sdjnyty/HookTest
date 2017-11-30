@@ -60,7 +60,13 @@ namespace YTY.HookTest
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate int DirectPlayCreateD(Guid* pGuid, void** ppDp, IntPtr pUnk);
 
-    //[UnmanagedFunctionPointer ( CallingConvention.Winapi)]
-    //internal delegate int 
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    internal delegate HostEnt* GetHostByNameD(sbyte* name);
+
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    internal delegate int GetHostNameD(sbyte*name, int nameLen);
+
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    internal delegate int ListenD(IntPtr socket, int backlog);
   }
 }
