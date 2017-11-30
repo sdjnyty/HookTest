@@ -431,7 +431,6 @@ namespace YTY.HookTest
         {
           _q.Add($" {new IntPtr( *p++).ToString("X")}\n");
         }
-        _q.Add($"[DirectPlayCreate]={ret}\t{*pGuid}\t{**(byte**)ppDp }\t{pUnk}\n");
       }
       return ret;
     }
