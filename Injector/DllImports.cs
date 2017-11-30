@@ -78,7 +78,11 @@ namespace YTY.HookTest
     [DllImport("dplayx")]
     internal static extern int DirectPlayCreate(Guid* pGuid, void** ppDp, IntPtr pUnk);
 
+    [DllImport("ole32")]
+    internal static extern uint CoCreateInstance(Guid* clsid, IntPtr pUnkOuter, int clsContext, Guid* iid, int** ppv);
+
     internal static Guid DPSPGUID_TCPIP =new Guid(0x36E95EE0, 0x8577, 0x11cf, 0x96, 0xc, 0x0, 0x80, 0xc7, 0x53, 0x4e, 0x82);
+    internal static Guid IID_IDirectPlay4 = new Guid(0xab1c530, 0x4745, 0x11d1, 0xa7, 0xa1, 0x0, 0x0, 0xf8, 0x3, 0xab, 0xfc);
 
     [DllImport("ws2_32")]
     internal static extern HostEnt* gethostbyname(sbyte* name);

@@ -76,6 +76,8 @@ namespace YTY.HookTest
       //hRecvFrom.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hDirectPlayCreate = LocalHook.Create(LocalHook.GetProcAddress("dplayx", "DirectPlayCreate"), new DirectPlayCreateD(DirectPlayCreateH), this);
       //hDirectPlayCreate.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hCoCreateInstance = LocalHook.Create(LocalHook.GetProcAddress("ole32", "CoCreateInstance"), new CoCreateInstanceD(CoCreateInstanceH), this);
+      hCoCreateInstance.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hGetHostByName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostbyname"), new GetHostByNameD(GetHostByNameH), this);
       hGetHostByName.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hGetHostName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostname"), new GetHostNameD(GetHostNameH), this);
@@ -413,6 +415,22 @@ namespace YTY.HookTest
       if (*pGuid == DllImports.DPSPGUID_TCPIP)
       {
         //var obj=Marshal.GetObjectForIUnknown(new IntPtr( ppDp.ToPointer()));
+        _q.Add($"[DirectPlayCreate]={ret}\t{*pGuid}\t{**(byte**)ppDp }\t{pUnk}\n");
+      }
+      return ret;
+    }
+
+    private uint CoCreateInstanceH(Guid* clsid, IntPtr pUnkOuter, int clsContext, Guid* iid, int** ppv)
+    {
+      var ret = DllImports.CoCreateInstance(clsid, pUnkOuter, clsContext, iid, ppv);
+      if (*iid == DllImports.IID_IDirectPlay4)
+      {
+        var p =(int*) new IntPtr( **ppv).ToPointer();
+        _q.Add($"[CoCreateInstance]{*clsid}\t{pUnkOuter}\t{clsContext}\t{*iid}\t{new IntPtr(p).ToString("X")}\n");
+        for(var i=0;i<10;i++)
+        {
+          _q.Add($" {new IntPtr( *p++).ToString("X")}\n");
+        }
         _q.Add($"[DirectPlayCreate]={ret}\t{*pGuid}\t{**(byte**)ppDp }\t{pUnk}\n");
       }
       return ret;
