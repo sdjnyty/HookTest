@@ -24,7 +24,8 @@ namespace YTY.HookTest
     private readonly HashSet<IntPtr> _dlls = new HashSet<IntPtr>();
     private readonly BlockingCollection<string> _q = new BlockingCollection<string>();
     private ConcurrentDictionary<IntPtr, Socket> _sockets = new ConcurrentDictionary<IntPtr, Socket>();
-    private string _hostName;
+    private string _fakeHostName = "条顿武士";
+    private string _trueHostName;
     private int _ip = BitConverter.ToInt32(new byte[] { 10, 11, 12, 13 }, 0);
 
     public HookEntryPoint(RemoteHooking.IContext context)
@@ -46,10 +47,10 @@ namespace YTY.HookTest
       //hTextOut.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hGetACP = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "GetACP"), new GetACPD(GetACPH), this);
       //hGetACP.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hLoadString = LocalHook.Create(LocalHook.GetProcAddress("user32", "LoadStringA"), new LoadStringD(LoadStringH), this);
-      //hLoadString.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryAD(LoadLibraryH), this);
-      //hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hLoadString = LocalHook.Create(LocalHook.GetProcAddress("user32", "LoadStringA"), new LoadStringD(LoadStringH), this);
+      hLoadString.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryAD(LoadLibraryH), this);
+      hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hDrawTextA = LocalHook.Create(LocalHook.GetProcAddress("user32", "DrawTextA"), new DrawTextAD(DrawTextH), this);
       //hDrawTextA.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(acceptH), this);
@@ -137,11 +138,6 @@ namespace YTY.HookTest
 
     private int LoadStringH(IntPtr instance, uint id, sbyte* buffer, int bufferMax)
     {
-      _q.Add($"[LoadStringA]{id}\t");
-      var ret = DllImports.LoadStringA(instance, id, buffer, bufferMax);
-      _q.Add($"{new string(buffer)}\n");
-      return ret;
-
       #region get unicode
 
       //var p = Marshal.AllocHGlobal(bufferMax * 2);
@@ -162,32 +158,32 @@ namespace YTY.HookTest
 
       #region get from ini
 
-      //if (!_dlls.Contains(instance))
-      //{
-      //  return DllImports.LoadStringA(instance, id, buffer, bufferMax);
-      //}
+      if (!_dlls.Contains(instance))
+      {
+        return DllImports.LoadStringA(instance, id, buffer, bufferMax);
+      }
 
-      //if (_kvs.ContainsKey(id.ToString()))
-      //{
-      //  var str = _kvs[id.ToString()].Replace(@"\n", "\n") + '\0';
-      //  //_q.Add($"{str}\n");
-      //  var bytes = Encoding.GetEncoding(936).GetBytes(str);
+      if (_kvs.ContainsKey(id.ToString()))
+      {
+        var str = _kvs[id.ToString()].Replace(@"\n", "\n") + '\0';
+        //_q.Add($"{str}\n");
+        var bytes = Encoding.Default.GetBytes(str);
 
-      //  if (bufferMax > bytes.Length)
-      //  {
-      //    Marshal.Copy(bytes, 0, buffer, bytes.Length);
-      //    //_q.Add($"[LoadStringA]\t{id}\t{Marshal.PtrToStringUni(buffer)}\t{bufferMax}\n");
-      //    return bytes.Length;
-      //  }
-      //  else
-      //  {
-      //    return 0;
-      //  }
-      //}
-      //else
-      //{
-      //  return 0;
-      //}
+        if (bufferMax > bytes.Length)
+        {
+          Marshal.Copy(bytes, 0,new IntPtr( buffer), bytes.Length);
+          //_q.Add($"[LoadStringA]\t{id}\t{Marshal.PtrToStringUni(buffer)}\t{bufferMax}\n");
+          return bytes.Length;
+        }
+        else
+        {
+          return 0;
+        }
+      }
+      else
+      {
+        return 0;
+      }
 
       #endregion
     }
@@ -255,11 +251,11 @@ namespace YTY.HookTest
         var s = _sockets[socket];
         s.Bind(addr->ToIPEndPoint());
         _q.Add($"[bind ]\t{s.Handle}\t{s.ProtocolType}\t{s.LocalEndPoint}\n");
-        return (int) SocketError.Success;
+        return (int)SocketError.Success;
       }
       catch
       {
-        return (int) SocketError.SocketError;
+        return (int)SocketError.SocketError;
       }
     }
 
@@ -354,7 +350,7 @@ namespace YTY.HookTest
         var y = new byte[len];
         Marshal.Copy(new IntPtr(buff), y, 0, len);
         var s = _sockets[socket];
-        var ret=s.SendTo(y, to->ToIPEndPoint());
+        var ret = s.SendTo(y, to->ToIPEndPoint());
         _q.Add($"[sndto]{socket}\t{s.ProtocolType}\t{s.LocalEndPoint}\t{to->ToIPEndPoint()}\t{BitConverter.ToString(y)}\n");
         return ret;
       }
@@ -425,11 +421,11 @@ namespace YTY.HookTest
       var ret = DllImports.CoCreateInstance(clsid, pUnkOuter, clsContext, iid, ppv);
       if (*iid == DllImports.IID_IDirectPlay4)
       {
-        var p =(int*) new IntPtr( **ppv).ToPointer();
+        var p = (int*)new IntPtr(**ppv).ToPointer();
         _q.Add($"[CoCreateInstance]{*clsid}\t{pUnkOuter}\t{clsContext}\t{*iid}\t{new IntPtr(p).ToString("X")}\n");
-        for(var i=0;i<10;i++)
+        for (var i = 0; i < 10; i++)
         {
-          _q.Add($" {new IntPtr( *p++).ToString("X")}\n");
+          _q.Add($" {new IntPtr(*p++).ToString("X")}\n");
         }
       }
       return ret;
@@ -437,13 +433,21 @@ namespace YTY.HookTest
 
     private HostEnt* GetHostByNameH(sbyte* name)
     {
-      var ret = DllImports.gethostbyname(name);
-      if (new string(name) == _hostName)
+      _q.Add($"[gethostbyname]{new string(name)}\n");
+      if (new string(name) == _fakeHostName)
       {
-        **ret->AddrList = _ip;
-        _q.Add($"[gethostbyname]\n");
+        fixed(byte * n=Encoding.Default.GetBytes( _trueHostName+"\0"))
+        {
+          var ret = DllImports.gethostbyname((sbyte*)n);
+          **ret->AddrList = _ip;
+          _q.Add($"[gethostbyname]\n");
+          return ret;
+ }
       }
-      return ret;
+      else
+      {
+        return null;
+      }
     }
 
     private int GetHostNameH(sbyte* name, int nameLen)
@@ -451,8 +455,10 @@ namespace YTY.HookTest
       var ret = DllImports.gethostname(name, nameLen);
       if (ret == 0)
       {
-        _hostName = new string(name);
-        _q.Add($"[gethostname]{_hostName}\n");
+        _trueHostName = new string(name);
+        var y = Encoding.Default.GetBytes(_fakeHostName+"\0");
+        Marshal.Copy(y, 0, new IntPtr(name), y.Length);
+        _q.Add($"[gethostname]{_fakeHostName}\n");
       }
       return ret;
     }
@@ -464,11 +470,11 @@ namespace YTY.HookTest
         var s = _sockets[socket];
         s.Listen(backlog);
         _q.Add($"[listn]\t{socket}\t{s.ProtocolType}\t{backlog}\n");
-        return (int) SocketError.Success;
+        return (int)SocketError.Success;
       }
       catch
       {
-        return (int) SocketError.SocketError;
+        return (int)SocketError.SocketError;
       }
     }
   }
