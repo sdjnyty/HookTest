@@ -70,5 +70,8 @@ namespace YTY.HookTest
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate int ListenD(IntPtr socket, int backlog);
+
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    internal delegate bool CreateProcessAD(sbyte* applicationName, sbyte* commandLine, IntPtr processAttributes,IntPtr threadAttributes, bool inheritHandles, uint creationFlags, IntPtr environment, sbyte* currentDirectory,IntPtr startupInfo, ProcessInformation* processInformation);
   }
 }

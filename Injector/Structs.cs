@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Net;
 
@@ -78,5 +79,14 @@ namespace YTY.HookTest
     public short AddrType;
     public short Length;
     public int** AddrList;
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct ProcessInformation
+  {
+    public IntPtr hProcess;
+    public IntPtr hThread;
+    public uint ProcessId;
+    public uint ThreadId;
   }
 }

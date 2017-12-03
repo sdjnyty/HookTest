@@ -36,7 +36,6 @@ namespace YTY.HookTest
     public void Run(RemoteHooking.IContext context)
     {
       _kvs = new IniParser.FileIniDataParser().ReadFile("language.dll.ini", Encoding.UTF8).Sections["Language.dll"];
-
       var pipe = new NamedPipeClientStream("HookPipe");
       pipe.Connect();
       _sw = new StreamWriter(pipe);
@@ -77,14 +76,16 @@ namespace YTY.HookTest
       //hRecvFrom.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hDirectPlayCreate = LocalHook.Create(LocalHook.GetProcAddress("dplayx", "DirectPlayCreate"), new DirectPlayCreateD(DirectPlayCreateH), this);
       //hDirectPlayCreate.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hCoCreateInstance = LocalHook.Create(LocalHook.GetProcAddress("ole32", "CoCreateInstance"), new CoCreateInstanceD(CoCreateInstanceH), this);
-      hCoCreateInstance.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hCoCreateInstance = LocalHook.Create(LocalHook.GetProcAddress("ole32", "CoCreateInstance"), new CoCreateInstanceD(CoCreateInstanceH), this);
+      //hCoCreateInstance.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hGetHostByName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostbyname"), new GetHostByNameD(GetHostByNameH), this);
       hGetHostByName.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hGetHostName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostname"), new GetHostNameD(GetHostNameH), this);
       hGetHostName.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hListen = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "listen"), new ListenD(ListenH), this);
       hListen.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hCreateProcessA = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "CreateProcessA"), new CreateProcessAD(CreateProcessAH), this);
+      hCreateProcessA.ThreadACL.SetExclusiveACL(new[] { 0 });
       Task.Run(() =>
       {
         while (true)
@@ -458,7 +459,7 @@ namespace YTY.HookTest
         _trueHostName = new string(name);
         var y = Encoding.Default.GetBytes(_fakeHostName+"\0");
         Marshal.Copy(y, 0, new IntPtr(name), y.Length);
-        _q.Add($"[gethostname]{_fakeHostName}\n");
+        _q.Add($"[gethostname]\t{_fakeHostName}\n");
       }
       return ret;
     }
@@ -476,6 +477,13 @@ namespace YTY.HookTest
       {
         return (int)SocketError.SocketError;
       }
+    }
+
+    private bool CreateProcessAH(sbyte* applicationName, sbyte* commandLine, IntPtr processAttributes,IntPtr threadAttributes, bool inheritHandles, uint creationFlags, IntPtr environment, sbyte* currentDirectory,IntPtr startupInfo, ProcessInformation* processInformation)
+    {
+      RemoteHooking.CreateAndInject(new string(applicationName), new string(commandLine), 0, null, null, out var pid);
+      _q.Add($"[cretp]\t{new string(applicationName)}\n");
+      return false;
     }
   }
 }
