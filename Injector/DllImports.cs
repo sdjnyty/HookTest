@@ -92,5 +92,8 @@ namespace YTY.HookTest
 
     [DllImport("ws2_32")]
     internal static extern int listen(IntPtr socket, int backlog);
+
+    [DllImport("kernel32")]
+    internal static extern bool CreateProcessA(sbyte* applicationName, sbyte* commandLine, IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint creationFlags, IntPtr environment, sbyte* currentDirectory, IntPtr startupInfo, ProcessInformation* processInformation);
   }
 }

@@ -1,4 +1,4 @@
-﻿namespace HookForm
+﻿namespace YTY.HookTest
 {
   partial class Form1
   {

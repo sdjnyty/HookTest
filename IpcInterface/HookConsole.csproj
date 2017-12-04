@@ -72,9 +72,9 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Injector\Injector.csproj">
+    <ProjectReference Include="..\Injector\Age2x1Injector.csproj">
       <Project>{1ba2895c-f414-4d82-b1d3-8dfdf62437bd}</Project>
-      <Name>Injector</Name>
+      <Name>Age2x1Injector</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

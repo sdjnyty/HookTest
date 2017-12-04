@@ -19,6 +19,8 @@ namespace YTY.HookTest
 {
   public unsafe class HookEntryPoint : IEntryPoint
   {
+    private int _pid;
+    private InjectArgs _injectArgs;
     private StreamWriter _sw;
     private IniParser.Model.KeyDataCollection _kvs;
     private readonly HashSet<IntPtr> _dlls = new HashSet<IntPtr>();
@@ -28,12 +30,13 @@ namespace YTY.HookTest
     private string _trueHostName;
     private int _ip = BitConverter.ToInt32(new byte[] { 10, 11, 12, 13 }, 0);
 
-    public HookEntryPoint(RemoteHooking.IContext context)
+    public HookEntryPoint(RemoteHooking.IContext context,InjectArgs injectArgs)
     {
-
+      _injectArgs = injectArgs;
+      _pid= RemoteHooking.GetCurrentProcessId();
     }
 
-    public void Run(RemoteHooking.IContext context)
+    public void Run(RemoteHooking.IContext context, InjectArgs injectArgs)
     {
       _kvs = new IniParser.FileIniDataParser().ReadFile("language.dll.ini", Encoding.UTF8).Sections["Language.dll"];
       var pipe = new NamedPipeClientStream("HookPipe");
@@ -46,20 +49,20 @@ namespace YTY.HookTest
       //hTextOut.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hGetACP = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "GetACP"), new GetACPD(GetACPH), this);
       //hGetACP.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hLoadString = LocalHook.Create(LocalHook.GetProcAddress("user32", "LoadStringA"), new LoadStringD(LoadStringH), this);
-      hLoadString.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryAD(LoadLibraryH), this);
-      hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hLoadString = LocalHook.Create(LocalHook.GetProcAddress("user32", "LoadStringA"), new LoadStringD(LoadStringH), this);
+      //hLoadString.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryAD(LoadLibraryH), this);
+      //hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hDrawTextA = LocalHook.Create(LocalHook.GetProcAddress("user32", "DrawTextA"), new DrawTextAD(DrawTextH), this);
       //hDrawTextA.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(acceptH), this);
       //hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "socket"), new SocketD(SocketH), this);
-      hSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hCloseSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "closesocket"), new CloseSocketD(CloseSocketH), this);
-      hCloseSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
-      hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "socket"), new SocketD(SocketH), this);
+      //hSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hCloseSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "closesocket"), new CloseSocketD(CloseSocketH), this);
+      //hCloseSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
+      //hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hConnect = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "connect"), new ConnectD(ConnectH), this);
       //hConnect.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hGetPeerName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getpeername"), new GetPeerNameD(GetPeerNameH), this);
@@ -68,8 +71,8 @@ namespace YTY.HookTest
       //hGetSockName.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hSend = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "send"), new SendD(SendH), this);
       //hSend.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hSendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "sendto"), new SendToD(SendToH), this);
-      hSendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hSendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "sendto"), new SendToD(SendToH), this);
+      //hSendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hRecv = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recv"), new RecvD(RecvH), this);
       //hRecv.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hRecvFrom = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recvfrom"), new RecvFromD(RecvFromH), this);
@@ -78,12 +81,12 @@ namespace YTY.HookTest
       //hDirectPlayCreate.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hCoCreateInstance = LocalHook.Create(LocalHook.GetProcAddress("ole32", "CoCreateInstance"), new CoCreateInstanceD(CoCreateInstanceH), this);
       //hCoCreateInstance.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hGetHostByName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostbyname"), new GetHostByNameD(GetHostByNameH), this);
-      hGetHostByName.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hGetHostName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostname"), new GetHostNameD(GetHostNameH), this);
-      hGetHostName.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hListen = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "listen"), new ListenD(ListenH), this);
-      hListen.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hGetHostByName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostbyname"), new GetHostByNameD(GetHostByNameH), this);
+      //hGetHostByName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hGetHostName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostname"), new GetHostNameD(GetHostNameH), this);
+      //hGetHostName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hListen = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "listen"), new ListenD(ListenH), this);
+      //hListen.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hCreateProcessA = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "CreateProcessA"), new CreateProcessAD(CreateProcessAH), this);
       hCreateProcessA.ThreadACL.SetExclusiveACL(new[] { 0 });
       Task.Run(() =>
@@ -94,6 +97,7 @@ namespace YTY.HookTest
           _sw.Write(s);
         }
       });
+      _q.Add($"{RemoteHooking.GetCurrentProcessId()}\n");
       RemoteHooking.WakeUpProcess();
       Thread.Sleep(-1);
     }
@@ -481,9 +485,18 @@ namespace YTY.HookTest
 
     private bool CreateProcessAH(sbyte* applicationName, sbyte* commandLine, IntPtr processAttributes,IntPtr threadAttributes, bool inheritHandles, uint creationFlags, IntPtr environment, sbyte* currentDirectory,IntPtr startupInfo, ProcessInformation* processInformation)
     {
-      RemoteHooking.CreateAndInject(new string(applicationName), new string(commandLine), 0, null, null, out var pid);
-      _q.Add($"[cretp]\t{new string(applicationName)}\n");
-      return false;
+      //var ret = DllImports.CreateProcessA(applicationName, commandLine, processAttributes, threadAttributes, inheritHandles, creationFlags|4, environment, currentDirectory, startupInfo, processInformation);
+      _q.Add($"[cretp]\t{new string(applicationName)}\t{new string(commandLine)}\tpid={processInformation->ProcessId}\n");
+      try
+      {
+        RemoteHooking.CreateAndInject(new string(applicationName),new string(commandLine),0, _injectArgs.DllPath, _injectArgs.DllPath,out var pid, _injectArgs);
+        _q.Add($"{pid}\n");
+      }
+      catch (Exception ex)
+      {
+        _q.Add($"{ex}\n");
+      }
+      return true;
     }
   }
 }

@@ -6,7 +6,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{4A6D8908-386B-4687-89F1-CFB4F2A1C2A3}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>HookForm</RootNamespace>
+    <RootNamespace>YTY.HookTest</RootNamespace>
     <AssemblyName>HookForm</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -70,6 +70,7 @@
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
     <None Include="app.manifest" />
     <None Include="packages.config" />
@@ -107,9 +108,9 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Injector\Injector.csproj">
+    <ProjectReference Include="..\Injector\Age2x1Injector.csproj">
       <Project>{1ba2895c-f414-4d82-b1d3-8dfdf62437bd}</Project>
-      <Name>Injector</Name>
+      <Name>Age2x1Injector</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
