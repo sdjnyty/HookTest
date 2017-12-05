@@ -40,10 +40,10 @@ namespace YTY.HookTest
     internal delegate IntPtr AcceptD(IntPtr socket, sockaddr_in* addr, int* addrLen);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    internal delegate int BindD(IntPtr socket, sockaddr_in* addr, int addrLen);
+    internal delegate SocketError BindD(IntPtr socket, sockaddr_in* addr, int addrLen);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    internal delegate int ConnectD(IntPtr socket, sockaddr_in* addr, int addrLen);
+    internal delegate SocketError ConnectD(IntPtr socket, sockaddr_in* addr, int addrLen);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate int GetPeerNameD(IntPtr socket, sockaddr_in* addr, int* addrLen);
@@ -52,7 +52,7 @@ namespace YTY.HookTest
     internal delegate int GetSockNameD(IntPtr socket, sockaddr_in* addr, int* addrLen);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    internal delegate int CloseSocketD(IntPtr socket);
+    internal delegate SocketError CloseSocketD(IntPtr socket);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate IntPtr SocketD(AddressFamily af, SocketType type, ProtocolType protocol);
@@ -69,7 +69,7 @@ namespace YTY.HookTest
     internal delegate int GetHostNameD(sbyte*name, int nameLen);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-    internal delegate int ListenD(IntPtr socket, int backlog);
+    internal delegate SocketError ListenD(IntPtr socket, int backlog);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate bool CreateProcessAD(sbyte* applicationName, sbyte* commandLine, IntPtr processAttributes,IntPtr threadAttributes, bool inheritHandles, uint creationFlags, IntPtr environment, sbyte* currentDirectory,IntPtr startupInfo, ProcessInformation* processInformation);

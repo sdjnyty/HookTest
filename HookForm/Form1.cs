@@ -25,7 +25,7 @@ namespace YTY.HookTest
       var exePath =(string) Microsoft.Win32.Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Microsoft\Microsoft Games\Age of Empires II: The Conquerors Expansion\1.0").GetValue("EXE Path");
       var injectArgs = new InjectArgs
       {
-        DllPath = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "injector.dll"),
+        DllPath = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "age2x1injector.dll"),
       };
       RemoteHooking.CreateAndInject(Path.Combine(exePath, @"age2_x1\age2_x1.exe"), null, 0, injectArgs.DllPath, injectArgs.DllPath, out var pid,injectArgs);
       PipeLoop();

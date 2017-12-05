@@ -19,7 +19,10 @@ namespace YTY.HookTest
 {
   public unsafe class HookEntryPoint : IEntryPoint
   {
-    private int _pid;
+    private const string AGE2_X1 = "age2_x1";
+    private const string DPLAYSVR = "dplaysvr";
+
+    private Process _currentProcess;
     private InjectArgs _injectArgs;
     private StreamWriter _sw;
     private IniParser.Model.KeyDataCollection _kvs;
@@ -30,39 +33,44 @@ namespace YTY.HookTest
     private string _trueHostName;
     private int _ip = BitConverter.ToInt32(new byte[] { 10, 11, 12, 13 }, 0);
 
-    public HookEntryPoint(RemoteHooking.IContext context,InjectArgs injectArgs)
+    public HookEntryPoint(RemoteHooking.IContext context, InjectArgs injectArgs)
     {
       _injectArgs = injectArgs;
-      _pid= RemoteHooking.GetCurrentProcessId();
+      _currentProcess = Process.GetCurrentProcess();
     }
 
     public void Run(RemoteHooking.IContext context, InjectArgs injectArgs)
     {
-      _kvs = new IniParser.FileIniDataParser().ReadFile("language.dll.ini", Encoding.UTF8).Sections["Language.dll"];
+      if (_currentProcess.ProcessName.Equals(AGE2_X1, StringComparison.InvariantCultureIgnoreCase))
+      {
+        _kvs = new IniParser.FileIniDataParser().ReadFile("language.dll.ini", Encoding.UTF8).Sections["Language.dll"];
+        //var hTextOut = LocalHook.Create(LocalHook.GetProcAddress("gdi32", "TextOutA"), new TextOutAD(TextOutH), this);
+        //hTextOut.ThreadACL.SetExclusiveACL(new[] { 0 });
+        //var hLoadString = LocalHook.Create(LocalHook.GetProcAddress("user32", "LoadStringA"), new LoadStringD(LoadStringH), this);
+        //hLoadString.ThreadACL.SetExclusiveACL(new[] { 0 });
+        //var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryAD(LoadLibraryH), this);
+        //hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
+        //var hDrawTextA = LocalHook.Create(LocalHook.GetProcAddress("user32", "DrawTextA"), new DrawTextAD(DrawTextH), this);
+        //hDrawTextA.ThreadACL.SetExclusiveACL(new[] { 0 });
+        var hCreateProcessA = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "CreateProcessA"), new CreateProcessAD(CreateProcessAH), this);
+        hCreateProcessA.ThreadACL.SetExclusiveACL(new[] { 0 });
+      }
       var pipe = new NamedPipeClientStream("HookPipe");
       pipe.Connect();
       _sw = new StreamWriter(pipe);
       _sw.AutoFlush = true;
       //var hPostQuitMessage = LocalHook.Create(LocalHook.GetProcAddress("user32", "PostQuitMessage"), new PostQuitMessageD(PostQuitMessageH), this);
       //hPostQuitMessage.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hTextOut = LocalHook.Create(LocalHook.GetProcAddress("gdi32", "TextOutA"), new TextOutAD(TextOutH), this);
-      //hTextOut.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hGetACP = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "GetACP"), new GetACPD(GetACPH), this);
       //hGetACP.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hLoadString = LocalHook.Create(LocalHook.GetProcAddress("user32", "LoadStringA"), new LoadStringD(LoadStringH), this);
-      //hLoadString.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hLoadLibrary = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "LoadLibraryA"), new LoadLibraryAD(LoadLibraryH), this);
-      //hLoadLibrary.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hDrawTextA = LocalHook.Create(LocalHook.GetProcAddress("user32", "DrawTextA"), new DrawTextAD(DrawTextH), this);
-      //hDrawTextA.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(acceptH), this);
       //hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "socket"), new SocketD(SocketH), this);
-      //hSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hCloseSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "closesocket"), new CloseSocketD(CloseSocketH), this);
-      //hCloseSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
-      //hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "socket"), new SocketD(SocketH), this);
+      hSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hCloseSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "closesocket"), new CloseSocketD(CloseSocketH), this);
+      hCloseSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
+      hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hConnect = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "connect"), new ConnectD(ConnectH), this);
       //hConnect.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hGetPeerName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getpeername"), new GetPeerNameD(GetPeerNameH), this);
@@ -81,14 +89,12 @@ namespace YTY.HookTest
       //hDirectPlayCreate.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hCoCreateInstance = LocalHook.Create(LocalHook.GetProcAddress("ole32", "CoCreateInstance"), new CoCreateInstanceD(CoCreateInstanceH), this);
       //hCoCreateInstance.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hGetHostByName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostbyname"), new GetHostByNameD(GetHostByNameH), this);
-      //hGetHostByName.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hGetHostName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostname"), new GetHostNameD(GetHostNameH), this);
-      //hGetHostName.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hListen = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "listen"), new ListenD(ListenH), this);
-      //hListen.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hCreateProcessA = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "CreateProcessA"), new CreateProcessAD(CreateProcessAH), this);
-      hCreateProcessA.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hGetHostByName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostbyname"), new GetHostByNameD(GetHostByNameH), this);
+      hGetHostByName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hGetHostName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostname"), new GetHostNameD(GetHostNameH), this);
+      hGetHostName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hListen = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "listen"), new ListenD(ListenH), this);
+      hListen.ThreadACL.SetExclusiveACL(new[] { 0 });
       Task.Run(() =>
       {
         while (true)
@@ -97,14 +103,20 @@ namespace YTY.HookTest
           _sw.Write(s);
         }
       });
-      _q.Add($"{RemoteHooking.GetCurrentProcessId()}\n");
       RemoteHooking.WakeUpProcess();
       Thread.Sleep(-1);
     }
 
+    private MakeArgs DebugOutput([System.Runtime.CompilerServices.CallerMemberName()]string caller = "")
+    {
+      return objs => _q.Add($"{_currentProcess.ProcessName.PadRight(9)}[{caller.PadRight(15)}] {string.Join("\t", objs)}\n");
+    }
+
+    private delegate void MakeArgs(params object[] args);
+
     private void PostQuitMessageH(int exitCode)
     {
-      _q.Add("[PostQuitMessage]\n");
+      DebugOutput()();
       DllImports.PostQuitMessage(exitCode);
     }
 
@@ -130,14 +142,14 @@ namespace YTY.HookTest
         sf = StringFormat.GenericDefault;
       }
       g.DrawString(str, font, new SolidBrush(color), point, sf);
-      _q.Add($"[TextOutA]{font}\t{color}\t{point}\t{align}\t{str}\n");
+      DebugOutput()(font, color, point, align, str);
       return true;
       //return TextOutW(dc, xStart, yStart, str, str.Length);
     }
 
     private uint GetACPH()
     {
-      _q.Add($"[GetACP]{DllImports.GetACP()}\n");
+      DebugOutput()(DllImports.GetACP());
       return 1252;
     }
 
@@ -176,7 +188,7 @@ namespace YTY.HookTest
 
         if (bufferMax > bytes.Length)
         {
-          Marshal.Copy(bytes, 0,new IntPtr( buffer), bytes.Length);
+          Marshal.Copy(bytes, 0, new IntPtr(buffer), bytes.Length);
           //_q.Add($"[LoadStringA]\t{id}\t{Marshal.PtrToStringUni(buffer)}\t{bufferMax}\n");
           return bytes.Length;
         }
@@ -196,7 +208,7 @@ namespace YTY.HookTest
     private IntPtr LoadLibraryH(sbyte* pFileName)
     {
       var fileName = new string(pFileName);
-      _q.Add($"[LoadLibraryA]{fileName}\n");
+      DebugOutput()(fileName);
       var ret = NativeAPI.LoadLibrary(fileName);
       if (fileName.Equals("language.dll", StringComparison.InvariantCultureIgnoreCase)
         || fileName.Equals("language_x1.dll", StringComparison.InvariantCultureIgnoreCase)
@@ -231,19 +243,18 @@ namespace YTY.HookTest
         sf = StringFormat.GenericDefault;
       }
       g.DrawString(str, font, new SolidBrush(color), rectF, sf);
-      _q.Add($"[DrawTextA]{format}\t{font}\t{color}\t{rectF}\t{str}\n");
+      DebugOutput()(format, font, color, rectF, str);
       return (int)rectF.Height;
     }
 
     private IntPtr acceptH(IntPtr socket, sockaddr_in* addr, int* addrLen)
     {
-      _q.Add($"[accept]{socket}\t");
       var ret = DllImports.accept(socket, addr, addrLen);
-      _q.Add($"{addr->ToIPEndPoint()}\n");
+      DebugOutput()(socket, addr->ToIPEndPoint());
       return ret;
     }
 
-    private int BindH(IntPtr socket, sockaddr_in* addr, int addrLen)
+    private SocketError BindH(IntPtr socket, sockaddr_in* addr, int addrLen)
     {
       //var ret = DllImports.bind(socket, addr, addrLen);
       //if (ret == 0)
@@ -255,30 +266,29 @@ namespace YTY.HookTest
       {
         var s = _sockets[socket];
         s.Bind(addr->ToIPEndPoint());
-        _q.Add($"[bind ]\t{s.Handle}\t{s.ProtocolType}\t{s.LocalEndPoint}\n");
-        return (int)SocketError.Success;
+        DebugOutput()(s.Handle, s.ProtocolType, s.LocalEndPoint);
+        return SocketError.Success;
       }
       catch
       {
-        return (int)SocketError.SocketError;
+        return SocketError.SocketError;
       }
     }
 
-    private int ConnectH(IntPtr socket, sockaddr_in* addr, int addrLen)
+    private SocketError ConnectH(IntPtr socket, sockaddr_in* addr, int addrLen)
     {
       var ep = addr->ToIPEndPoint();
-      _q.Add($"[connect]{socket}\t{ep}\n");
+      DebugOutput()(socket, ep);
       try
       {
         _sockets[socket].Connect(ep);
-        return (int)SocketError.Success;
+        return SocketError.Success;
       }
       catch (SocketException ex)
       {
-        _q.Add($"{ex}\n");
-        return (int)ex.SocketErrorCode;
+        DebugOutput()(ex);
+        return SocketError.SocketError;
       }
-      return DllImports.connect(socket, addr, addrLen);
     }
 
     private int GetPeerNameH(IntPtr socket, sockaddr_in* addr, int* addrLen)
@@ -327,17 +337,17 @@ namespace YTY.HookTest
       return ret;
     }
 
-    private int CloseSocketH(IntPtr socket)
+    private SocketError CloseSocketH(IntPtr socket)
     {
       if (_sockets.TryRemove(socket, out var s))
       {
-        _q.Add($"[close]\t{s.Handle}\n");
+        DebugOutput()(s.Handle);
         s.Close();
-        return (int)SocketError.Success;
+        return SocketError.Success;
       }
       else
       {
-        return (int)SocketError.NotSocket;
+        return SocketError.NotSocket;
       }
     }
 
@@ -401,7 +411,7 @@ namespace YTY.HookTest
         }
         var s = new Socket(af, type, protocol);
         _sockets.TryAdd(s.Handle, s);
-        _q.Add($"[sock ]\t{s.Handle}\t{s.ProtocolType}\n");
+        DebugOutput()(s.Handle, s.ProtocolType);
         return s.Handle;
       }
       catch (SocketException)
@@ -438,16 +448,15 @@ namespace YTY.HookTest
 
     private HostEnt* GetHostByNameH(sbyte* name)
     {
-      _q.Add($"[gethostbyname]{new string(name)}\n");
+      DebugOutput()(new string(name));
       if (new string(name) == _fakeHostName)
       {
-        fixed(byte * n=Encoding.Default.GetBytes( _trueHostName+"\0"))
+        fixed (byte* n = Encoding.Default.GetBytes(_trueHostName + "\0"))
         {
           var ret = DllImports.gethostbyname((sbyte*)n);
           **ret->AddrList = _ip;
-          _q.Add($"[gethostbyname]\n");
           return ret;
- }
+        }
       }
       else
       {
@@ -461,42 +470,41 @@ namespace YTY.HookTest
       if (ret == 0)
       {
         _trueHostName = new string(name);
-        var y = Encoding.Default.GetBytes(_fakeHostName+"\0");
+        var y = Encoding.Default.GetBytes(_fakeHostName + "\0");
         Marshal.Copy(y, 0, new IntPtr(name), y.Length);
-        _q.Add($"[gethostname]\t{_fakeHostName}\n");
+        DebugOutput()(_fakeHostName);
       }
       return ret;
     }
 
-    private int ListenH(IntPtr socket, int backlog)
+    private SocketError ListenH(IntPtr socket, int backlog)
     {
       try
       {
         var s = _sockets[socket];
         s.Listen(backlog);
-        _q.Add($"[listn]\t{socket}\t{s.ProtocolType}\t{backlog}\n");
-        return (int)SocketError.Success;
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, backlog);
+        return SocketError.Success;
       }
       catch
       {
-        return (int)SocketError.SocketError;
+        return SocketError.SocketError;
       }
     }
 
-    private bool CreateProcessAH(sbyte* applicationName, sbyte* commandLine, IntPtr processAttributes,IntPtr threadAttributes, bool inheritHandles, uint creationFlags, IntPtr environment, sbyte* currentDirectory,IntPtr startupInfo, ProcessInformation* processInformation)
+    private bool CreateProcessAH(sbyte* applicationName, sbyte* commandLine, IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint creationFlags, IntPtr environment, sbyte* currentDirectory, IntPtr startupInfo, ProcessInformation* processInformation)
     {
-      //var ret = DllImports.CreateProcessA(applicationName, commandLine, processAttributes, threadAttributes, inheritHandles, creationFlags|4, environment, currentDirectory, startupInfo, processInformation);
-      _q.Add($"[cretp]\t{new string(applicationName)}\t{new string(commandLine)}\tpid={processInformation->ProcessId}\n");
+      DebugOutput()(new string(applicationName), new string(commandLine), processInformation->ProcessId);
       try
       {
-        RemoteHooking.CreateAndInject(new string(applicationName),new string(commandLine),0, _injectArgs.DllPath, _injectArgs.DllPath,out var pid, _injectArgs);
-        _q.Add($"{pid}\n");
+        RemoteHooking.CreateAndInject(new string(applicationName), new string(commandLine), 0, _injectArgs.DllPath, _injectArgs.DllPath, out var pid, _injectArgs);
+        return true;
       }
       catch (Exception ex)
       {
-        _q.Add($"{ex}\n");
+        DebugOutput()(ex);
+        return false;
       }
-      return true;
     }
   }
 }
