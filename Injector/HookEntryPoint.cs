@@ -28,7 +28,7 @@ namespace YTY.HookTest
     private IniParser.Model.KeyDataCollection _kvs;
     private readonly HashSet<IntPtr> _dlls = new HashSet<IntPtr>();
     private readonly BlockingCollection<string> _q = new BlockingCollection<string>();
-    private ConcurrentDictionary<IntPtr, Socket> _sockets = new ConcurrentDictionary<IntPtr, Socket>();
+    private ConcurrentDictionary<int, SocketProxy> _sockets = new ConcurrentDictionary<int, SocketProxy>();
     private string _fakeHostName = "条顿武士";
     private string _trueHostName;
     private int _ip = BitConverter.ToInt32(new byte[] { 10, 11, 12, 13 }, 0);
@@ -63,28 +63,28 @@ namespace YTY.HookTest
       //hPostQuitMessage.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hGetACP = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "GetACP"), new GetACPD(GetACPH), this);
       //hGetACP.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(acceptH), this);
-      //hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(AcceptH), this);
+      hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "socket"), new SocketD(SocketH), this);
       hSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hCloseSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "closesocket"), new CloseSocketD(CloseSocketH), this);
       hCloseSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
       hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hConnect = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "connect"), new ConnectD(ConnectH), this);
-      //hConnect.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hGetPeerName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getpeername"), new GetPeerNameD(GetPeerNameH), this);
-      //hGetPeerName.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hGetSockName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getsockname"), new GetSockNameD(GetSockNameH), this);
-      //hGetSockName.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hSend = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "send"), new SendD(SendH), this);
-      //hSend.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hSendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "sendto"), new SendToD(SendToH), this);
-      //hSendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hRecv = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recv"), new RecvD(RecvH), this);
-      //hRecv.ThreadACL.SetExclusiveACL(new[] { 0 });
-      //var hRecvFrom = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recvfrom"), new RecvFromD(RecvFromH), this);
-      //hRecvFrom.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hConnect = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "connect"), new ConnectD(ConnectH), this);
+      hConnect.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hGetPeerName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getpeername"), new GetPeerNameD(GetPeerNameH), this);
+      hGetPeerName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hGetSockName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getsockname"), new GetSockNameD(GetSockNameH), this);
+      hGetSockName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hSend = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "send"), new SendD(SendH), this);
+      hSend.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hSendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "sendto"), new SendToD(SendToH), this);
+      hSendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hRecv = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recv"), new RecvD(RecvH), this);
+      hRecv.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hRecvFrom = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recvfrom"), new RecvFromD(RecvFromH), this);
+      hRecvFrom.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hDirectPlayCreate = LocalHook.Create(LocalHook.GetProcAddress("dplayx", "DirectPlayCreate"), new DirectPlayCreateD(DirectPlayCreateH), this);
       //hDirectPlayCreate.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hCoCreateInstance = LocalHook.Create(LocalHook.GetProcAddress("ole32", "CoCreateInstance"), new CoCreateInstanceD(CoCreateInstanceH), this);
@@ -247,177 +247,222 @@ namespace YTY.HookTest
       return (int)rectF.Height;
     }
 
-    private IntPtr acceptH(IntPtr socket, sockaddr_in* addr, int* addrLen)
+    private int AcceptH(int socket, sockaddr_in* addr, int* addrLen)
     {
       var ret = DllImports.accept(socket, addr, addrLen);
+      if (ret == DllImports.INVALID_SOCKET)
+      {
+
+      }
+      else
+      {
+        DebugOutput()(socket, addr->ToIPEndPoint());
+      }
+      return ret;
+    }
+
+    private SocketError BindH(int socket, sockaddr_in* addr, int addrLen)
+    {
+      var ret = DllImports.bind(socket, addr, addrLen);
+      if (ret == SocketError.Success)
+      {
+        var s = _sockets[socket];
+        s.LocalEndPoint = addr->ToIPEndPoint();
+        DebugOutput()(socket, s.LocalEndPoint, ret);
+      }
+      else if (ret == SocketError.SocketError)
+      {
+
+      }
+      return ret;
+    }
+
+    private SocketError CloseSocketH(int socket)
+    {
+      var ret = DllImports.closesocket(socket);
+      if (ret == SocketError.Success)
+      {
+        if (_sockets.TryRemove(socket, out var s))
+        {
+          DebugOutput()(s.Socket);
+        }
+      }
+      else if (ret == SocketError.SocketError)
+      {
+
+      }
+      return ret;
+    }
+
+    private SocketError ConnectH(int socket, sockaddr_in* addr, int addrLen)
+    {
+      var ret = DllImports.connect(socket, addr, addrLen);
+      if (ret == SocketError.Success)
+      {
+        var s = _sockets[socket];
+        s.RemoteEndPoint = addr->ToIPEndPoint();
+        DebugOutput()(socket, s.RemoteEndPoint);
+      }
+      else if (ret == SocketError.SocketError)
+      {
+
+      }
+      return ret;
+    }
+
+    private HostEnt* GetHostByNameH(sbyte* name)
+    {
+      DebugOutput()(new string(name));
+      if (new string(name) == _fakeHostName)
+      {
+        fixed (byte* n = Encoding.Default.GetBytes(_trueHostName + "\0"))
+        {
+          var ret = DllImports.gethostbyname((sbyte*)n);
+          **ret->AddrList = _ip;
+          return ret;
+        }
+      }
+      else
+      {
+        return null;
+      }
+    }
+
+    private SocketError GetHostNameH(sbyte* name, int nameLen)
+    {
+      var ret = DllImports.gethostname(name, nameLen);
+      if (ret == 0)
+      {
+        _trueHostName = new string(name);
+        var y = Encoding.Default.GetBytes(_fakeHostName + "\0");
+        Marshal.Copy(y, 0, new IntPtr(name), y.Length);
+        DebugOutput()(_fakeHostName);
+      }
+      return ret;
+    }
+
+    private SocketError GetPeerNameH(int socket, sockaddr_in* addr, int* addrLen)
+    {
+      var ret = DllImports.getpeername(socket, addr, addrLen);
       DebugOutput()(socket, addr->ToIPEndPoint());
       return ret;
     }
 
-    private SocketError BindH(IntPtr socket, sockaddr_in* addr, int addrLen)
+    private SocketError GetSockNameH(int socket, sockaddr_in* addr, int* addrLen)
     {
-      //var ret = DllImports.bind(socket, addr, addrLen);
-      //if (ret == 0)
-      //{
-      //  _q.Add($"[bind]{socket}\t{addr->}\n");
-      //}
-      //return ret;
-      try
+      var ret = DllImports.getsockname(socket, addr, addrLen);
+      DebugOutput()(socket, addr->ToIPEndPoint());
+      return ret;
+    }
+
+    private SocketError ListenH(int socket, int backlog)
+    {
+      var ret = DllImports.listen(socket, backlog);
+      if (ret == SocketError.Success)
       {
         var s = _sockets[socket];
-        s.Bind(addr->ToIPEndPoint());
-        DebugOutput()(s.Handle, s.ProtocolType, s.LocalEndPoint);
-        return SocketError.Success;
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, backlog);
       }
-      catch
+      else if (ret == SocketError.SocketError)
       {
-        return SocketError.SocketError;
-      }
-    }
 
-    private SocketError ConnectH(IntPtr socket, sockaddr_in* addr, int addrLen)
-    {
-      var ep = addr->ToIPEndPoint();
-      DebugOutput()(socket, ep);
-      try
-      {
-        _sockets[socket].Connect(ep);
-        return SocketError.Success;
       }
-      catch (SocketException ex)
-      {
-        DebugOutput()(ex);
-        return SocketError.SocketError;
-      }
-    }
-
-    private int GetPeerNameH(IntPtr socket, sockaddr_in* addr, int* addrLen)
-    {
-      _q.Add($"[getpeername]{socket}\t");
-      var rep = _sockets[socket].RemoteEndPoint.ToBytes();
-      for (var i = 0; i < rep.Length; i++)
-      {
-        ((byte*)addr)[i] = rep[i];
-      }
-      *addrLen = rep.Length;
-      _q.Add($"{_sockets[socket].RemoteEndPoint}\n");
-      return (int)SocketError.Success;
-      var ret = DllImports.getpeername(socket, addr, addrLen);
-      _q.Add($"[getpeername]{socket}\t{addr->ToIPEndPoint()}");
       return ret;
     }
 
-    private int GetSockNameH(IntPtr socket, sockaddr_in* addr, int* addrLen)
+    private int RecvH(int socket, sbyte* buff, int len, int flags)
     {
-      _q.Add($"[getsockname]{socket}\t");
-      try
+      var ret = DllImports.recv(socket, buff, len, flags);
+      var s = _sockets[socket];
+      if (ret > 0)
       {
-        var rep = _sockets[socket].LocalEndPoint.ToBytes();
-        _q.Add(BitConverter.ToString(rep));
-        for (var i = 0; i < rep.Length; i++)
-        {
-          ((byte*)addr)[i] = rep[i];
-        }
-        *addrLen = rep.Length;
-        _q.Add($"{_sockets[socket].LocalEndPoint}\n");
-        return (int)SocketError.Success;
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, s.RemoteEndPoint, new string(buff, 0, ret).Replace0());
       }
-      catch (SocketException ex)
+      else if (ret == 0)
       {
-        _q.Add($"{ex}\n");
-        return -1; //(int)ex.SocketErrorCode;
-      }
-      catch (NullReferenceException)
-      {
-        _q.Add("\n");
-        return (int)SocketError.InvalidArgument;
-      }
-      var ret = DllImports.getsockname(socket, addr, addrLen);
-      _q.Add($"[getsockname]={ret}\t{socket}\t{addr->ToIPEndPoint()}");
-      return ret;
-    }
-
-    private SocketError CloseSocketH(IntPtr socket)
-    {
-      if (_sockets.TryRemove(socket, out var s))
-      {
-        DebugOutput()(s.Handle);
-        s.Close();
-        return SocketError.Success;
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, s.RemoteEndPoint, "gracefully closed");
       }
       else
       {
-        return SocketError.NotSocket;
-      }
-    }
 
-    private int SendH(IntPtr socket, sbyte* buff, int len, int flags)
-    {
-      var str = new string(buff);
-      _q.Add($"[send]{socket}\t{len}\t{flags}");
-      _q.Add(str);
-      return DllImports.send(socket, buff, len, flags);
-    }
-    private int SendToH(IntPtr socket, sbyte* buff, int len, int flags, sockaddr_in* to, int toLen)
-    {
-      try
-      {
-        var y = new byte[len];
-        Marshal.Copy(new IntPtr(buff), y, 0, len);
-        var s = _sockets[socket];
-        var ret = s.SendTo(y, to->ToIPEndPoint());
-        _q.Add($"[sndto]{socket}\t{s.ProtocolType}\t{s.LocalEndPoint}\t{to->ToIPEndPoint()}\t{BitConverter.ToString(y)}\n");
-        return ret;
       }
-      catch
-      {
-        return -1;
-      }
-      var str = new string(buff);
-      _q.Add($"[sendto]{socket}\t{len}\t{flags}\t{to->ToIPEndPoint()}");
-      _q.Add(str);
-      return DllImports.sendto(socket, buff, len, flags, to, toLen);
-    }
-
-    private int RecvH(IntPtr socket, sbyte* buff, int len, int flags)
-    {
-      var ret = DllImports.recv(socket, buff, len, flags);
-      var str = new string(buff);
-      _q.Add($"[recv]={ret}\t{socket}\t{flags}");
-      _q.Add(str);
       return ret;
     }
 
-    private int RecvFromH(IntPtr socket, sbyte* buff, int len, int flags, sockaddr_in* from, int* fromLen)
+    private int RecvFromH(int socket, sbyte* buff, int len, int flags, sockaddr_in* from, int* fromLen)
     {
       var ret = DllImports.recvfrom(socket, buff, len, flags, from, fromLen);
-      var str = new string(buff);
-      _q.Add($"[recv]={ret}\t{socket}\t{len}\t{flags}\t{from->ToIPEndPoint()}");
-      _q.Add(str);
+      var s = _sockets[socket];
+      if (ret > 0)
+      {
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, from->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
+      }
+      else if (ret == 0)
+      {
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, "gracefully closed");
+      }
+      else
+      {
+
+      }
       return ret;
     }
 
-    private IntPtr SocketH(AddressFamily af, SocketType type, ProtocolType protocol)
+    private int SendH(int socket, sbyte* buff, int len, int flags)
     {
-      try
+      var ret = DllImports.send(socket, buff, len, flags);
+      if (ret >= 0)
       {
-        if (type == SocketType.Dgram)
-        {
-          protocol = ProtocolType.Udp;
-        }
-        else if (type == SocketType.Stream)
-        {
-          protocol = ProtocolType.Tcp;
-        }
-        var s = new Socket(af, type, protocol);
-        _sockets.TryAdd(s.Handle, s);
-        DebugOutput()(s.Handle, s.ProtocolType);
-        return s.Handle;
+        var s = _sockets[socket];
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, s.RemoteEndPoint, new string(buff, 0, ret).Replace0());
       }
-      catch (SocketException)
+      else
       {
-        return DllImports.INVALID_SOCKET;
+
       }
+      return ret;
+    }
+
+    private int SendToH(int socket, sbyte* buff, int len, int flags, sockaddr_in* to, int toLen)
+    {
+      var ret = DllImports.sendto(socket, buff, len, flags, to, toLen);
+      if (ret >= 0)
+      {
+        var s = _sockets[socket];
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, to->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
+      }
+      else
+      {
+
+      }
+      return ret;
+    }
+
+    private int SocketH(AddressFamily af, SocketType type, ProtocolType protocol)
+    {
+      if (type == SocketType.Dgram)
+      {
+        protocol = ProtocolType.Udp;
+      }
+      else if (type == SocketType.Stream)
+      {
+        protocol = ProtocolType.Tcp;
+      }
+      var s = DllImports.socket(af, type, protocol);
+      if (s == DllImports.INVALID_SOCKET)
+      {
+
+      }
+      else
+      {
+        _sockets.TryAdd(s, new SocketProxy
+        {
+          Socket = s,
+          ProtocolType = protocol,
+        });
+        DebugOutput()(s, protocol);
+      }
+      return s;
     }
 
     private int DirectPlayCreateH(Guid* pGuid, void** ppDp, IntPtr pUnk)
@@ -444,52 +489,6 @@ namespace YTY.HookTest
         }
       }
       return ret;
-    }
-
-    private HostEnt* GetHostByNameH(sbyte* name)
-    {
-      DebugOutput()(new string(name));
-      if (new string(name) == _fakeHostName)
-      {
-        fixed (byte* n = Encoding.Default.GetBytes(_trueHostName + "\0"))
-        {
-          var ret = DllImports.gethostbyname((sbyte*)n);
-          **ret->AddrList = _ip;
-          return ret;
-        }
-      }
-      else
-      {
-        return null;
-      }
-    }
-
-    private int GetHostNameH(sbyte* name, int nameLen)
-    {
-      var ret = DllImports.gethostname(name, nameLen);
-      if (ret == 0)
-      {
-        _trueHostName = new string(name);
-        var y = Encoding.Default.GetBytes(_fakeHostName + "\0");
-        Marshal.Copy(y, 0, new IntPtr(name), y.Length);
-        DebugOutput()(_fakeHostName);
-      }
-      return ret;
-    }
-
-    private SocketError ListenH(IntPtr socket, int backlog)
-    {
-      try
-      {
-        var s = _sockets[socket];
-        s.Listen(backlog);
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, backlog);
-        return SocketError.Success;
-      }
-      catch
-      {
-        return SocketError.SocketError;
-      }
     }
 
     private bool CreateProcessAH(sbyte* applicationName, sbyte* commandLine, IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint creationFlags, IntPtr environment, sbyte* currentDirectory, IntPtr startupInfo, ProcessInformation* processInformation)

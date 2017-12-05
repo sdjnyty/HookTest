@@ -19,5 +19,10 @@ namespace YTY.HookTest
       }
       return ret;
     }
+
+    internal static string Replace0(this string s)
+    {
+      return s.Replace("\0", "\\0");
+    }
   }
 }
