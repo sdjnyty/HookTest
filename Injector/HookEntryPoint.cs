@@ -22,6 +22,7 @@ namespace YTY.HookTest
     private const string AGE2_X1 = "age2_x1";
     private const string DPLAYSVR = "dplaysvr";
 
+    private TcpClient _tcpClient = new TcpClient("yty1.club", 11111);
     private Process _currentProcess;
     private InjectArgs _injectArgs;
     private StreamWriter _sw;
