@@ -52,6 +52,9 @@ namespace YTY.HookTest
 
     [DllImport("ws2_32")]
     internal static extern int socket(AddressFamily af, SocketType type, ProtocolType protocol);
+
+    [DllImport("ws2_32")]
+    internal static extern SocketError WSAGetLastError(); 
     #endregion
 
     #region user32

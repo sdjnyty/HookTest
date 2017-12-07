@@ -22,7 +22,7 @@ namespace YTY.HookTest
     private const string AGE2_X1 = "age2_x1";
     private const string DPLAYSVR = "dplaysvr";
 
-    private TcpClient _tcpClient = new TcpClient("yty1.club", 11111);
+    //private TcpClient _tcpClient = new TcpClient("yty1.club", 11111);
     private Process _currentProcess;
     private InjectArgs _injectArgs;
     private StreamWriter _sw;
@@ -33,6 +33,8 @@ namespace YTY.HookTest
     private string _fakeHostName = "条顿武士";
     private string _trueHostName;
     private int _ip = BitConverter.ToInt32(new byte[] { 10, 11, 12, 13 }, 0);
+
+    private LocalHook _hGetSockName;
 
     public HookEntryPoint(RemoteHooking.IContext context, InjectArgs injectArgs)
     {
@@ -64,26 +66,26 @@ namespace YTY.HookTest
       //hPostQuitMessage.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hGetACP = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "GetACP"), new GetACPD(GetACPH), this);
       //hGetACP.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(AcceptH), this);
-      hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(AcceptH), this);
+      //hAccept.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "socket"), new SocketD(SocketH), this);
       hSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hCloseSocket = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "closesocket"), new CloseSocketD(CloseSocketH), this);
       hCloseSocket.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hBind = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "bind"), new BindD(BindH), this);
       hBind.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hConnect = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "connect"), new ConnectD(ConnectH), this);
-      hConnect.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hConnect = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "connect"), new ConnectD(ConnectH), this);
+      //hConnect.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hGetPeerName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getpeername"), new GetPeerNameD(GetPeerNameH), this);
       hGetPeerName.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hGetSockName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getsockname"), new GetSockNameD(GetSockNameH), this);
-      hGetSockName.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hSend = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "send"), new SendD(SendH), this);
-      hSend.ThreadACL.SetExclusiveACL(new[] { 0 });
+      _hGetSockName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "getsockname"), new GetSockNameD(GetSockNameH), this);
+      _hGetSockName.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hSend = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "send"), new SendD(SendH), this);
+      //hSend.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hSendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "sendto"), new SendToD(SendToH), this);
       hSendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hRecv = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recv"), new RecvD(RecvH), this);
-      hRecv.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hRecv = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recv"), new RecvD(RecvH), this);
+      //hRecv.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hRecvFrom = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "recvfrom"), new RecvFromD(RecvFromH), this);
       hRecvFrom.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hDirectPlayCreate = LocalHook.Create(LocalHook.GetProcAddress("dplayx", "DirectPlayCreate"), new DirectPlayCreateD(DirectPlayCreateH), this);
@@ -94,8 +96,8 @@ namespace YTY.HookTest
       hGetHostByName.ThreadACL.SetExclusiveACL(new[] { 0 });
       var hGetHostName = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "gethostname"), new GetHostNameD(GetHostNameH), this);
       hGetHostName.ThreadACL.SetExclusiveACL(new[] { 0 });
-      var hListen = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "listen"), new ListenD(ListenH), this);
-      hListen.ThreadACL.SetExclusiveACL(new[] { 0 });
+      //var hListen = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "listen"), new ListenD(ListenH), this);
+      //hListen.ThreadACL.SetExclusiveACL(new[] { 0 });
       Task.Run(() =>
       {
         while (true)
@@ -110,7 +112,7 @@ namespace YTY.HookTest
 
     private MakeArgs DebugOutput([System.Runtime.CompilerServices.CallerMemberName()]string caller = "")
     {
-      return objs => _q.Add($"{_currentProcess.ProcessName.PadRight(9)}[{caller.PadRight(15)}] {string.Join("\t", objs)}\n");
+      return objs => _q.Add($"{_currentProcess.ProcessName.PadRight(9)}{DateTime.Now.ToString("hh:mm:ss.fff").PadRight(10)}[{caller.PadRight(15)}] {string.Join("\t", objs)}\n");
     }
 
     private delegate void MakeArgs(params object[] args);
@@ -268,8 +270,18 @@ namespace YTY.HookTest
       if (ret == SocketError.Success)
       {
         var s = _sockets[socket];
-        s.LocalEndPoint = addr->ToIPEndPoint();
-        DebugOutput()(socket, s.LocalEndPoint, ret);
+        var paddr = stackalloc sockaddr_in[1];
+        var paddrLen = stackalloc int[1];
+        *paddrLen = sizeof (sockaddr_in);
+        var backup=_hGetSockName.ThreadACL.GetEntries();
+        _hGetSockName.ThreadACL.SetExclusiveACL(new int[] { 0 });
+        DllImports.getsockname(socket, paddr, paddrLen);
+        _hGetSockName.ThreadACL.SetExclusiveACL(backup);
+        s.LocalEndPoint = paddr->ToIPEndPoint();
+        if (s.ProtocolType == ProtocolType.Udp && s.LocalEndPoint.Address.Equals(IPAddress.Any))
+        {
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint);
+        }
       }
       else if (ret == SocketError.SocketError)
       {
@@ -285,7 +297,10 @@ namespace YTY.HookTest
       {
         if (_sockets.TryRemove(socket, out var s))
         {
-          DebugOutput()(s.Socket);
+          if (s.ProtocolType == ProtocolType.Udp)
+          {
+            //DebugOutput()(s.Socket);
+          }
         }
       }
       else if (ret == SocketError.SocketError)
@@ -313,7 +328,6 @@ namespace YTY.HookTest
 
     private HostEnt* GetHostByNameH(sbyte* name)
     {
-      DebugOutput()(new string(name));
       if (new string(name) == _fakeHostName)
       {
         fixed (byte* n = Encoding.Default.GetBytes(_trueHostName + "\0"))
@@ -337,7 +351,6 @@ namespace YTY.HookTest
         _trueHostName = new string(name);
         var y = Encoding.Default.GetBytes(_fakeHostName + "\0");
         Marshal.Copy(y, 0, new IntPtr(name), y.Length);
-        DebugOutput()(_fakeHostName);
       }
       return ret;
     }
@@ -352,7 +365,11 @@ namespace YTY.HookTest
     private SocketError GetSockNameH(int socket, sockaddr_in* addr, int* addrLen)
     {
       var ret = DllImports.getsockname(socket, addr, addrLen);
-      DebugOutput()(socket, addr->ToIPEndPoint());
+      var s = _sockets[socket];
+      if (s.ProtocolType == ProtocolType.Udp)
+      {
+        DebugOutput()(socket, s.ProtocolType, addr->ToIPEndPoint());
+      }
       return ret;
     }
 
@@ -392,21 +409,42 @@ namespace YTY.HookTest
 
     private int RecvFromH(int socket, sbyte* buff, int len, int flags, sockaddr_in* from, int* fromLen)
     {
-      var ret = DllImports.recvfrom(socket, buff, len, flags, from, fromLen);
       var s = _sockets[socket];
-      if (ret > 0)
+      if (s.ProtocolType == ProtocolType.Udp&&s.LocalEndPoint.Address.Equals(IPAddress.Any))
       {
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, from->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, "BEGIN");
+        var ret = DllImports.recvfrom(socket, buff, len, flags, from, fromLen);
+        if (ret > 0)
+        {
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, from->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
+        }
+        else if (ret < 0)
+        {
+
+        }
+        return ret;
       }
-      else if (ret == 0)
+      else if (s.ProtocolType == ProtocolType.Tcp)
       {
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, "gracefully closed");
+        var ret = DllImports.recvfrom(socket, buff, len, flags, from, fromLen);
+        if (ret > 0)
+        {
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, from->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
+        }
+        else if (ret == 0)
+        {
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, "gracefully closed");
+        }
+        else
+        {
+
+        }
+        return ret;
       }
       else
       {
-
+        return DllImports.recvfrom(socket, buff, len, flags, from, fromLen);
       }
-      return ret;
     }
 
     private int SendH(int socket, sbyte* buff, int len, int flags)
@@ -415,7 +453,10 @@ namespace YTY.HookTest
       if (ret >= 0)
       {
         var s = _sockets[socket];
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, s.RemoteEndPoint, new string(buff, 0, ret).Replace0());
+        if (s.ProtocolType == ProtocolType.Udp)
+        {
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, s.RemoteEndPoint, new string(buff, 0, ret).Replace0());
+        }
       }
       else
       {
@@ -426,17 +467,24 @@ namespace YTY.HookTest
 
     private int SendToH(int socket, sbyte* buff, int len, int flags, sockaddr_in* to, int toLen)
     {
-      var ret = DllImports.sendto(socket, buff, len, flags, to, toLen);
-      if (ret >= 0)
+      var s = _sockets[socket];
+      var toEp = to->ToIPEndPoint();
+      if (s.ProtocolType == ProtocolType.Udp && toEp.Address.Equals(IPAddress.Broadcast))
       {
-        var s = _sockets[socket];
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, to->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
+        if (s.LocalEndPoint == null)
+        {
+          var paddr = stackalloc sockaddr_in[1];
+          var paddrLen = stackalloc int[1];
+          DllImports.getsockname(socket, paddr, paddrLen);
+          s.LocalEndPoint = paddr->ToIPEndPoint();
+        }
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, "BROADCAST", new string(buff, 0, len).Replace0());
+        return len;
       }
       else
       {
-
+        return DllImports.sendto(socket, buff, len, flags, to, toLen);
       }
-      return ret;
     }
 
     private int SocketH(AddressFamily af, SocketType type, ProtocolType protocol)
@@ -461,7 +509,10 @@ namespace YTY.HookTest
           Socket = s,
           ProtocolType = protocol,
         });
-        DebugOutput()(s, protocol);
+        if (protocol == ProtocolType.Udp)
+        {
+          //DebugOutput()(s, protocol);
+        }
       }
       return s;
     }
