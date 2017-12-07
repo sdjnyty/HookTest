@@ -22,7 +22,7 @@ namespace YTY.HookTest
     private const string AGE2_X1 = "age2_x1";
     private const string DPLAYSVR = "dplaysvr";
 
-    //private TcpClient _tcpClient = new TcpClient("yty1.club", 11111);
+    private TransferProxy _proxy = new TransferProxy();
     private Process _currentProcess;
     private InjectArgs _injectArgs;
     private StreamWriter _sw;
@@ -32,7 +32,7 @@ namespace YTY.HookTest
     private ConcurrentDictionary<int, SocketProxy> _sockets = new ConcurrentDictionary<int, SocketProxy>();
     private string _fakeHostName = "条顿武士";
     private string _trueHostName;
-    private int _ip = BitConverter.ToInt32(new byte[] { 10, 11, 12, 13 }, 0);
+    private int _ip;
 
     private LocalHook _hGetSockName;
 
@@ -40,6 +40,7 @@ namespace YTY.HookTest
     {
       _injectArgs = injectArgs;
       _currentProcess = Process.GetCurrentProcess();
+      _proxy.Start();
     }
 
     public void Run(RemoteHooking.IContext context, InjectArgs injectArgs)
@@ -479,6 +480,7 @@ namespace YTY.HookTest
           s.LocalEndPoint = paddr->ToIPEndPoint();
         }
         DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, "BROADCAST", new string(buff, 0, len).Replace0());
+
         return len;
       }
       else

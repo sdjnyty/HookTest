@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.IO;
 using System.Collections.Concurrent;
+using System.Dynamic;
 using Newtonsoft.Json;
 
 namespace YTY.HookTest
@@ -41,29 +42,24 @@ namespace YTY.HookTest
       using (var reader = new StreamReader(client.GetStream(), Encoding.UTF8))
       using (var writer = new StreamWriter(client.GetStream(), Encoding.UTF8))
       {
+        writer.WriteLine(ip);
         string line;
         while ((line = await reader.ReadLineAsync()) != null)
         {
-          var message = JsonConvert.DeserializeObject<Message>(line);
-
-          switch (message.Command)
+          dynamic req = JsonConvert.DeserializeObject(line);
+          dynamic resp = new ExpandoObject();
+          switch (req.Cmd)
           {
             case MessageCommand.Login:
 
-              message.Ip = ip;
-              await writer.WriteLineAsync(JsonConvert.SerializeObject(message));
+              resp.Ip = ip;
               break;
           }
+          await writer.WriteLineAsync(JsonConvert.SerializeObject(resp));
         }
       }
       IpManager.RecycleIp(ip);
     }
-  }
-
-  internal class Message
-  {
-    public MessageCommand Command { get; set; }
-    public int Ip { get; set; }
   }
 
   internal static class IpManager
