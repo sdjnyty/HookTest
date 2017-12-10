@@ -10,5 +10,7 @@ namespace YTY.HookTest
   public class InjectArgs
   {
     public string DllPath { get; set; }
+
+    public int UdpProxyPort { get; set; }
   }
 }

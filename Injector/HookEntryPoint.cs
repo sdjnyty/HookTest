@@ -40,7 +40,6 @@ namespace YTY.HookTest
     {
       _injectArgs = injectArgs;
       _currentProcess = Process.GetCurrentProcess();
-      _proxy.Start();
     }
 
     public void Run(RemoteHooking.IContext context, InjectArgs injectArgs)
@@ -58,13 +57,13 @@ namespace YTY.HookTest
         //hDrawTextA.ThreadACL.SetExclusiveACL(new[] { 0 });
         var hCreateProcessA = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "CreateProcessA"), new CreateProcessAD(CreateProcessAH), this);
         hCreateProcessA.ThreadACL.SetExclusiveACL(new[] { 0 });
+        var hPostQuitMessage = LocalHook.Create(LocalHook.GetProcAddress("user32", "PostQuitMessage"), new PostQuitMessageD(PostQuitMessageH), this);
+        hPostQuitMessage.ThreadACL.SetExclusiveACL(new[] { 0 });
       }
       var pipe = new NamedPipeClientStream("HookPipe");
       pipe.Connect();
       _sw = new StreamWriter(pipe);
       _sw.AutoFlush = true;
-      //var hPostQuitMessage = LocalHook.Create(LocalHook.GetProcAddress("user32", "PostQuitMessage"), new PostQuitMessageD(PostQuitMessageH), this);
-      //hPostQuitMessage.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hGetACP = LocalHook.Create(LocalHook.GetProcAddress("kernel32", "GetACP"), new GetACPD(GetACPH), this);
       //hGetACP.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hAccept = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "accept"), new AcceptD(AcceptH), this);
@@ -99,6 +98,10 @@ namespace YTY.HookTest
       hGetHostName.ThreadACL.SetExclusiveACL(new[] { 0 });
       //var hListen = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "listen"), new ListenD(ListenH), this);
       //hListen.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hWSARecvFrom = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "WSARecvFrom"), new WSARecvFromD(WSARecvFromH), this);
+      hWSARecvFrom.ThreadACL.SetExclusiveACL(new[] { 0 });
+      var hWSASendTo = LocalHook.Create(LocalHook.GetProcAddress("ws2_32", "WSASendTo"), new WSASendToD(WSASendToH), this);
+      hWSASendTo.ThreadACL.SetExclusiveACL(new[] { 0 });
       Task.Run(() =>
       {
         while (true)
@@ -479,7 +482,10 @@ namespace YTY.HookTest
           DllImports.getsockname(socket, paddr, paddrLen);
           s.LocalEndPoint = paddr->ToIPEndPoint();
         }
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, "BROADCAST", new string(buff, 0, len).Replace0());
+        var bytes = new byte[len];
+        Marshal.Copy(new IntPtr(buff), bytes, 0, len);
+        File.WriteAllBytes("1.bin", bytes);
+        DebugOutput()( socket, s.ProtocolType, s.LocalEndPoint,toEp, new string(buff, 0, len).Replace0());
 
         return len;
       }
@@ -517,6 +523,22 @@ namespace YTY.HookTest
         }
       }
       return s;
+    }
+
+    private SocketError WSARecvFromH(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesRecvd,uint* pFlags, sockaddr_in* pFrom, int* pFromLen, IntPtr pOverlapped, IntPtr pCompletionRoutine)
+    {
+      var s = _sockets[socket];
+      var ret = DllImports.WSARecvFrom(socket, pBuffers, bufferCount, pNumberOfBytesRecvd, pFlags, pFrom, pFromLen,pOverlapped, pCompletionRoutine);
+      DebugOutput()(socket,s.ProtocolType,s.LocalEndPoint, pFrom->ToIPEndPoint(), new string(pBuffers->Buf, 0, (int) *pNumberOfBytesRecvd).Replace0());
+      return ret;
+    }
+
+    private SocketError WSASendToH(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesSent, uint flags,sockaddr_in* pTo, int toLen, IntPtr pOverlapped, IntPtr pCompletionRoutine)
+    {
+      var s = _sockets[socket];
+      var ret = DllImports.WSASendTo(socket, pBuffers, bufferCount, pNumberOfBytesSent, flags, pTo, toLen, pOverlapped,pCompletionRoutine);
+      DebugOutput()(socket, s.LocalEndPoint, pTo->ToIPEndPoint(),new string(pBuffers->Buf, 0, (int) pBuffers->Len).Replace0());
+      return ret;
     }
 
     private int DirectPlayCreateH(Guid* pGuid, void** ppDp, IntPtr pUnk)

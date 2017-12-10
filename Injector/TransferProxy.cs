@@ -24,21 +24,18 @@ namespace YTY.HookTest
       _udpProxyPort = (_udpProxy.Client.LocalEndPoint as IPEndPoint).Port;
     }
 
-    public void Start()
+    public int Connect()
     {
       _tcpClient.Connect("yty1.club", 11111);
       _sr = new StreamReader(_tcpClient.GetStream(), Encoding.UTF8);
       _sw = new StreamWriter(_tcpClient.GetStream(), Encoding.UTF8);
-      _sr.ReadLine();
+      return int.Parse(_sr.ReadLine());
     }
 
-    public int Login()
+    public void Disconnect()
     {
-      dynamic obj = new ExpandoObject();
-      obj.Cmd = 1;
-      _sw.WriteLine(JsonConvert.SerializeObject(obj));
-      dynamic dyn=JsonConvert.DeserializeObject(_sr.ReadLine());
-      return dyn.Ip;
+      _sw.Close();
+      _tcpClient.Close();
     }
   }
 }

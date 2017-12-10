@@ -33,13 +33,17 @@ namespace YTY.HookTest
       {
         
       }
+      Console.WriteLine($"{Program.IntToIp(Ip)} disconnecting");
       Program.Instance.Clients.TryRemove(Ip, out var _);
+      IpManager.RecycleIp(Ip);
+      Console.WriteLine($"{Program.IntToIp(Ip)} recycled");
       TcpClient.Close();
     }
 
     public async Task SendIpAsync()
     {
       await Writer.WriteLineAsync(Ip.ToString());
+      Console.WriteLine("IP sent");
     }
 
     public async Task BroadCastAsync()

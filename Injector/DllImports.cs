@@ -55,6 +55,13 @@ namespace YTY.HookTest
 
     [DllImport("ws2_32")]
     internal static extern SocketError WSAGetLastError(); 
+
+    [DllImport("ws2_32")]
+    internal static extern SocketError WSARecvFrom(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesRecvd, uint* pFlags, sockaddr_in* pFrom, int* pFromLen, IntPtr pOverlapped, IntPtr pCompletionRoutine);
+
+    [DllImport ("ws2_32")]
+    internal static extern SocketError WSASendTo(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesSent, uint flags, sockaddr_in* pTo, int toLen, IntPtr pOverlapped, IntPtr pCompletionRoutine);
+
     #endregion
 
     #region user32

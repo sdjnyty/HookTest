@@ -89,4 +89,11 @@ namespace YTY.HookTest
     public uint ProcessId;
     public uint ThreadId;
   }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public unsafe struct WSABUF
+  {
+    public uint Len;
+    public sbyte* Buf;
+  }
 }

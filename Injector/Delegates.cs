@@ -49,6 +49,12 @@ namespace YTY.HookTest
     internal delegate int SocketD(AddressFamily af, SocketType type, ProtocolType protocol);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    internal delegate SocketError WSARecvFromD(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesRecvd, uint* pFlags, sockaddr_in* pFrom, int* pFromLen, IntPtr pOverlapped, IntPtr pCompletionRoutine);
+
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    internal delegate SocketError WSASendToD(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesSent,uint flags, sockaddr_in* pTo, int toLen, IntPtr pOverlapped, IntPtr pCompletionRoutine);
+
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate void PostQuitMessageD(int exitCode);
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]

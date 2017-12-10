@@ -27,19 +27,29 @@ namespace YTY.HookTest
       Instance.Run();
       Console.ReadLine();
       Instance.tcpListener.Stop();
+      Console.WriteLine("server stopped");
     }
 
     private async Task Run()
     {
       tcpListener.Start();
+      Console.WriteLine("server started");
       while (true)
       {
         var tcpClient = await tcpListener.AcceptTcpClientAsync();
+        Console.WriteLine($"TcpClient accepted:");
         var ip = IpManager.AllocateIp();
+        Console.WriteLine($"IP allocated:{IntToIp(ip)}");
         var client = new DyingClient(ip, tcpClient);
+        Clients.TryAdd(ip, client);
         client.SendIpAsync();
         client.ReceiveAsync();
       }
+    }
+
+    public static IPAddress IntToIp(int ip)
+    {
+      return new IPAddress(BitConverter.GetBytes(IPAddress.HostToNetworkOrder( ip)));
     }
   }
 
