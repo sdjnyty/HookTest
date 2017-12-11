@@ -11,6 +11,8 @@ namespace YTY.HookTest
   {
     public string DllPath { get; set; }
 
-    public int UdpProxyPort { get; set; }
+    public ushort UdpProxyPort { get; set; }
+
+    public int VirtualIp { get; set; }
   }
 }

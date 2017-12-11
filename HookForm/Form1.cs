@@ -17,7 +17,7 @@ namespace YTY.HookTest
 {
   public partial class Form1 : Form
   {
-    private readonly UdpClient _udpProxy = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+    private readonly TransferProxy _proxy = new TransferProxy();
 
     public Form1()
     {
@@ -26,16 +26,17 @@ namespace YTY.HookTest
 
     private void Form1_Load(object sender, EventArgs e)
     {
+     // _proxy.Start();
       var exePath = (string)Microsoft.Win32.Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Microsoft\Microsoft Games\Age of Empires II: The Conquerors Expansion\1.0").GetValue("EXE Path");
       var injectArgs = new InjectArgs
       {
         DllPath = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "age2x1injector.dll"),
-        UdpProxyPort = (_udpProxy.Client.LocalEndPoint as IPEndPoint).Port,
+        UdpProxyPort = _proxy.UdpProxyPort,
+        VirtualIp=_proxy.VirtualIp,
       };
       Console.WriteLine(injectArgs.UdpProxyPort);
       RemoteHooking.CreateAndInject(Path.Combine(exePath, @"age2_x1\age2_x1.exe"), null, 0, injectArgs.DllPath, injectArgs.DllPath, out var pid, injectArgs);
       PipeLoop();
-      UdpProxyLoop();
 
     }
 
@@ -57,18 +58,9 @@ namespace YTY.HookTest
       }
     }
 
-    private async Task UdpProxyLoop()
-    {
-      while (true)
-      {
-        var packet = (await _udpProxy.ReceiveAsync()).Buffer;
-       
-      }
-    }
-
     private void Form1_FormClosing(object sender, FormClosingEventArgs e)
     {
-      _udpProxy.Close();
+      _proxy.Close();
     }
   }
 }

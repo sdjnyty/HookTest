@@ -22,7 +22,8 @@ namespace YTY.HookTest
     private const string AGE2_X1 = "age2_x1";
     private const string DPLAYSVR = "dplaysvr";
 
-    private TransferProxy _proxy = new TransferProxy();
+    private static readonly byte[] LOOPBACKIP = IPAddress.Loopback.GetAddressBytes();
+
     private Process _currentProcess;
     private InjectArgs _injectArgs;
     private StreamWriter _sw;
@@ -32,7 +33,6 @@ namespace YTY.HookTest
     private ConcurrentDictionary<int, SocketProxy> _sockets = new ConcurrentDictionary<int, SocketProxy>();
     private string _fakeHostName = "条顿武士";
     private string _trueHostName;
-    private int _ip;
 
     private LocalHook _hGetSockName;
 
@@ -337,7 +337,7 @@ namespace YTY.HookTest
         fixed (byte* n = Encoding.Default.GetBytes(_trueHostName + "\0"))
         {
           var ret = DllImports.gethostbyname((sbyte*)n);
-          **ret->AddrList = _ip;
+          **ret->AddrList = _injectArgs.VirtualIp;
           return ret;
         }
       }
@@ -478,16 +478,30 @@ namespace YTY.HookTest
         if (s.LocalEndPoint == null)
         {
           var paddr = stackalloc sockaddr_in[1];
+          paddr->Family = (short)AddressFamily.InterNetwork;
+          paddr->Addr = 0;
+          paddr->Port = 0;
+          paddr->Zero = 0;
+          DllImports.bind(socket, paddr, 16);
           var paddrLen = stackalloc int[1];
           DllImports.getsockname(socket, paddr, paddrLen);
           s.LocalEndPoint = paddr->ToIPEndPoint();
         }
-        var bytes = new byte[len];
-        Marshal.Copy(new IntPtr(buff), bytes, 0, len);
-        File.WriteAllBytes("1.bin", bytes);
-        DebugOutput()( socket, s.ProtocolType, s.LocalEndPoint,toEp, new string(buff, 0, len).Replace0());
-
-        return len;
+        var bytes = new byte[toLen + 5];
+        using(var ms=new MemoryStream(bytes))
+        using (var bw = new BinaryWriter(ms))
+        {
+          bw.Write((byte)1);
+          bw.Write(_injectArgs.VirtualIp);
+          Marshal.Copy(new IntPtr(buff), bytes, (int)ms.Position, len);
+        }
+        fixed(byte* pBuff=bytes)
+        {
+          to->Addr = 0x0100007f;
+          to->Port = _injectArgs.UdpProxyPort;
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, toEp, to->ToIPEndPoint(),"Cmd=1", new string(buff, 0, len).Replace0());
+          return DllImports.sendto(socket, (sbyte*)pBuff, bytes.Length, flags, to, toLen);
+        }
       }
       else
       {
