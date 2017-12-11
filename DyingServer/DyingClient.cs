@@ -14,25 +14,35 @@ namespace YTY.HookTest
 
     public TcpClient TcpClient { get; set; }
 
-    public StreamReader Reader { get; set; }
+    public BinaryReader Reader { get; set; }
 
-    public StreamWriter Writer { get; set; }
+    public BinaryWriter Writer { get; set; }
 
     public DyingClient(int ip, TcpClient tcpClient)
     {
       Ip = ip;
       TcpClient = tcpClient;
-      Reader = new StreamReader(tcpClient.GetStream());
-      Writer = new StreamWriter(tcpClient.GetStream());
+      Reader = new BinaryReader(tcpClient.GetStream());
+      Writer = new BinaryWriter(tcpClient.GetStream());
     }
 
     public async Task ReceiveAsync()
     {
-      string line;
-      while ((line = await Reader.ReadLineAsync()) != null)
+      await Task.Run(() =>
       {
-        
-      }
+        byte cmd;
+        while ((cmd = Reader.ReadByte()) != 0)
+        {
+          switch (cmd)
+          {
+            case 1: //broadcast
+              var length = Reader.ReadInt32();
+              var data = Reader.ReadBytes(length);
+              BroadCastAsync(BitConverter.GetBytes(length).Concat(data).ToArray());
+              break;
+          }
+        }
+      });
       Console.WriteLine($"{Program.IntToIp(Ip)} disconnecting");
       Program.Instance.Clients.TryRemove(Ip, out var _);
       IpManager.RecycleIp(Ip);
@@ -42,13 +52,18 @@ namespace YTY.HookTest
 
     public async Task SendIpAsync()
     {
-      await Writer.WriteLineAsync(Ip.ToString());
-      Console.WriteLine("IP sent");
+      await Task.Run(() =>
+      {
+        Writer.Write(Ip);
+        Console.WriteLine("IP sent");
+      });
     }
 
-    public async Task BroadCastAsync()
+    public async Task BroadCastAsync(byte[] packet)
     {
-      var tasks = Program.Instance.Clients.Values.Where(c => c.TcpClient.Connected).Select(c => c.Writer.WriteLineAsync());
+      var tasks = Program.Instance.Clients.Values
+        .Where(c => c.TcpClient.Connected)
+        .Select(c => Task.Run(() => c.Writer.Write(packet)));
       await Task.WhenAll(tasks);
     }
   }

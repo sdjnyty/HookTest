@@ -16,8 +16,8 @@ namespace YTY.HookTest
     private readonly TcpClient _tcpClient = new TcpClient();
     private readonly UdpClient _udpProxy = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
     private NetworkStream _stream;
-    private StreamReader _sr;
-    private StreamWriter _sw;
+    private BinaryReader _br;
+    private BinaryWriter _bw;
     private ushort _udpProxyPort;
     private int _virtualIp;
 
@@ -34,15 +34,15 @@ namespace YTY.HookTest
     {
       _tcpClient.Connect("yty1.club", 11111);
       _stream = _tcpClient.GetStream();
-      _sr = new StreamReader(_stream, Encoding.UTF8);
-      _sw = new StreamWriter(_stream, Encoding.UTF8);
-      _virtualIp = int.Parse(_sr.ReadLine());
+      _br = new BinaryReader(_stream);
+      _bw = new BinaryWriter(_stream);
+      _virtualIp =_br.ReadInt32();
       UdpProxyLoop();
     }
 
     public void Close()
     {
-      _sw.Close();
+      _bw.Close();
       _tcpClient.Close();
       _udpProxy.Close();
     }
@@ -59,7 +59,7 @@ namespace YTY.HookTest
           switch(command)
           {
             case 1://broadcast
-              _stream.Write(packet, 0, packet.Length);
+              _bw.Write(packet);
               break;
           }
         }
