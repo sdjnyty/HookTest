@@ -20,7 +20,7 @@ namespace YTY.HookTest
 
     public static Program Instance { get; } = new Program();
 
-    public ConcurrentDictionary<int, DyingClient> Clients { get; } = new ConcurrentDictionary<int, DyingClient>();
+    public ConcurrentDictionary<uint, DyingClient> Clients { get; } = new ConcurrentDictionary<uint, DyingClient>();
 
     private static void Main(string[] args)
     {
@@ -39,7 +39,7 @@ namespace YTY.HookTest
         var tcpClient = await tcpListener.AcceptTcpClientAsync();
         Console.WriteLine($"TcpClient accepted:");
         var ip = IpManager.AllocateIp();
-        Console.WriteLine($"IP allocated:{IntToIp(ip)}");
+        Console.WriteLine($"IP allocated:{UintToIp(ip)}");
         var client = new DyingClient(ip, tcpClient);
         Clients.TryAdd(ip, client);
         client.SendIpAsync();
@@ -47,9 +47,9 @@ namespace YTY.HookTest
       }
     }
 
-    public static IPAddress IntToIp(int ip)
+    public static IPAddress UintToIp(uint ip)
     {
-      return new IPAddress(BitConverter.GetBytes(IPAddress.HostToNetworkOrder( ip)));
+      return new IPAddress(BitConverter.GetBytes( ip));
     }
   }
 

@@ -78,7 +78,7 @@ namespace YTY.HookTest
     public sbyte** Aliases;
     public short AddrType;
     public short Length;
-    public int** AddrList;
+    public uint** AddrList;
   }
 
   [StructLayout(LayoutKind.Sequential)]

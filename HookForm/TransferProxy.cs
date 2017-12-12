@@ -19,15 +19,15 @@ namespace YTY.HookTest
     private BinaryReader _br;
     private BinaryWriter _bw;
     private ushort _udpProxyPort;
-    private int _virtualIp;
+    private uint _virtualIp;
 
     public ushort UdpProxyPort => _udpProxyPort;
 
-    public int VirtualIp => _virtualIp;
+    public uint VirtualIp => _virtualIp;
 
     public TransferProxy()
     {
-      _udpProxyPort =(ushort) (_udpProxy.Client.LocalEndPoint as IPEndPoint).Port;
+      _udpProxyPort = (ushort)(_udpProxy.Client.LocalEndPoint as IPEndPoint).Port;
     }
 
     public void Start()
@@ -36,8 +36,9 @@ namespace YTY.HookTest
       _stream = _tcpClient.GetStream();
       _br = new BinaryReader(_stream);
       _bw = new BinaryWriter(_stream);
-      _virtualIp =_br.ReadInt32();
+      _virtualIp = _br.ReadUInt32();
       UdpProxyLoop();
+      StreamLoop();
     }
 
     public void Close()
@@ -53,15 +54,47 @@ namespace YTY.HookTest
       {
         var packet = (await _udpProxy.ReceiveAsync()).Buffer;
         using (var ms = new MemoryStream(packet))
-          using(var br=new BinaryReader(ms))
+        using (var br = new BinaryReader(ms))
         {
           var command = br.ReadByte();
-          switch(command)
+          switch (command)
           {
             case 1://broadcast
               _bw.Write(packet);
               break;
           }
+        }
+      }
+    }
+
+    private async Task StreamLoop()
+    {
+      while (true)
+      {
+        var command = _br.ReadByte();
+        var fromVip = _br.ReadUInt32();
+        var fromPort = _br.ReadUInt16();
+        var toVip = _br.ReadUInt32();
+        var toPort = _br.ReadUInt16();
+        var length = _br.ReadInt32();
+        var data = _br.ReadBytes(length);
+        var packet = new byte[length + 17];
+        using (var ms = new MemoryStream(packet))
+        using (var bw = new BinaryWriter(ms))
+        {
+          bw.Write(command);
+          bw.Write(fromVip);
+          bw.Write(fromPort);
+          bw.Write(toVip);
+          bw.Write(toPort);
+          bw.Write(length);
+          bw.Write(data);
+        }
+        switch (command)
+        {
+          case 1://udp sendto
+            _udpProxy.SendAsync(packet, packet.Length, new IPEndPoint(IPAddress.Loopback, toPort));
+            break;
         }
       }
     }

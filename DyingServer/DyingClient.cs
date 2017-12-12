@@ -10,7 +10,7 @@ namespace YTY.HookTest
 {
   public class DyingClient
   {
-    public int Ip { get; set; }
+    public uint Ip { get; set; }
 
     public TcpClient TcpClient { get; set; }
 
@@ -18,7 +18,7 @@ namespace YTY.HookTest
 
     public BinaryWriter Writer { get; set; }
 
-    public DyingClient(int ip, TcpClient tcpClient)
+    public DyingClient(uint ip, TcpClient tcpClient)
     {
       Ip = ip;
       TcpClient = tcpClient;
@@ -33,20 +33,52 @@ namespace YTY.HookTest
         byte cmd;
         while ((cmd = Reader.ReadByte()) != 0)
         {
+          var fromVip = Reader.ReadUInt32();
+          var fromPort = Reader.ReadUInt16();
+          var toVip = Reader.ReadUInt32();
+          var toPort = Reader.ReadUInt16();
+          var length = Reader.ReadInt32();
+          var data = Reader.ReadBytes(length);
           switch (cmd)
           {
-            case 1: //broadcast
-              var length = Reader.ReadInt32();
-              var data = Reader.ReadBytes(length);
-              BroadCastAsync(BitConverter.GetBytes(length).Concat(data).ToArray());
+            case 1: //udp sendto
+              if (toVip == 0xffffffff) // broadcast
+              {
+                foreach (var client in Program.Instance.Clients.Values.ToList())
+                {
+                  Write(client);
+                }
+              }
+              else
+              {
+                if (Program.Instance.Clients.TryGetValue(toVip, out var client)
+                && client.TcpClient.Connected)
+                {
+                  Write(client);
+                }
+              }
               break;
+          }
+
+          void Write(DyingClient client)
+          {
+            if (client.TcpClient.Connected)
+            {
+              client.Writer.Write(cmd);
+              client.Writer.Write(fromVip);
+              client.Writer.Write(fromPort);
+              client.Writer.Write(toVip);
+              client.Writer.Write(toPort);
+              client.Writer.Write(length);
+              client.Writer.Write(data);
+            }
           }
         }
       });
-      Console.WriteLine($"{Program.IntToIp(Ip)} disconnecting");
+      Console.WriteLine($"{Program.UintToIp(Ip)} disconnecting");
       Program.Instance.Clients.TryRemove(Ip, out var _);
       IpManager.RecycleIp(Ip);
-      Console.WriteLine($"{Program.IntToIp(Ip)} recycled");
+      Console.WriteLine($"{Program.UintToIp(Ip)} recycled");
       TcpClient.Close();
     }
 

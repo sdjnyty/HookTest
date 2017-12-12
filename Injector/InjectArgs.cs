@@ -13,6 +13,6 @@ namespace YTY.HookTest
 
     public ushort UdpProxyPort { get; set; }
 
-    public int VirtualIp { get; set; }
+    public uint VirtualIp { get; set; }
   }
 }

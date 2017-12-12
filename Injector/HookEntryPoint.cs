@@ -21,6 +21,7 @@ namespace YTY.HookTest
   {
     private const string AGE2_X1 = "age2_x1";
     private const string DPLAYSVR = "dplaysvr";
+    private const uint LOOPBACK = 0x0100007f;
 
     private static readonly byte[] LOOPBACKIP = IPAddress.Loopback.GetAddressBytes();
 
@@ -276,15 +277,14 @@ namespace YTY.HookTest
         var s = _sockets[socket];
         var paddr = stackalloc sockaddr_in[1];
         var paddrLen = stackalloc int[1];
-        *paddrLen = sizeof (sockaddr_in);
-        var backup=_hGetSockName.ThreadACL.GetEntries();
-        _hGetSockName.ThreadACL.SetExclusiveACL(new int[] { 0 });
+        *paddrLen = sizeof(sockaddr_in);
         DllImports.getsockname(socket, paddr, paddrLen);
-        _hGetSockName.ThreadACL.SetExclusiveACL(backup);
-        s.LocalEndPoint = paddr->ToIPEndPoint();
-        if (s.ProtocolType == ProtocolType.Udp && s.LocalEndPoint.Address.Equals(IPAddress.Any))
+        s.LocalVip = paddr->Addr;
+        s.LocalPort = paddr->Port;
+        s.IsBound = true;
+        if (s.ProtocolType == ProtocolType.Udp && s.LocalVip == 0)
         {
-          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint);
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString());
         }
       }
       else if (ret == SocketError.SocketError)
@@ -320,8 +320,9 @@ namespace YTY.HookTest
       if (ret == SocketError.Success)
       {
         var s = _sockets[socket];
-        s.RemoteEndPoint = addr->ToIPEndPoint();
-        DebugOutput()(socket, s.RemoteEndPoint);
+        s.LocalVip = addr->Addr;
+        s.LocalPort = addr->Port;
+        DebugOutput()(socket, s.RemoteEndPointToString());
       }
       else if (ret == SocketError.SocketError)
       {
@@ -383,7 +384,7 @@ namespace YTY.HookTest
       if (ret == SocketError.Success)
       {
         var s = _sockets[socket];
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, backlog);
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), backlog);
       }
       else if (ret == SocketError.SocketError)
       {
@@ -398,11 +399,11 @@ namespace YTY.HookTest
       var s = _sockets[socket];
       if (ret > 0)
       {
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, s.RemoteEndPoint, new string(buff, 0, ret).Replace0());
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), s.RemoteEndPointToString(), new string(buff, 0, ret).Replace0());
       }
       else if (ret == 0)
       {
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, s.RemoteEndPoint, "gracefully closed");
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), s.RemoteEndPointToString(), "gracefully closed");
       }
       else
       {
@@ -414,13 +415,37 @@ namespace YTY.HookTest
     private int RecvFromH(int socket, sbyte* buff, int len, int flags, sockaddr_in* from, int* fromLen)
     {
       var s = _sockets[socket];
-      if (s.ProtocolType == ProtocolType.Udp&&s.LocalEndPoint.Address.Equals(IPAddress.Any))
+      if (s.ProtocolType == ProtocolType.Udp && s.LocalVip == 0)
       {
-        DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, "BEGIN");
+        DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), "BEGIN");
         var ret = DllImports.recvfrom(socket, buff, len, flags, from, fromLen);
         if (ret > 0)
         {
-          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, from->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
+          if (from->Addr == LOOPBACK && from->Port == _injectArgs.UdpProxyPort)
+          {
+            var packet = new byte[ret];
+            Marshal.Copy(new IntPtr(buff), packet, 0, ret);
+            using (var ms = new MemoryStream(packet))
+            using (var br = new BinaryReader(ms))
+            {
+              var command = br.ReadByte();
+              var fromVip = br.ReadUInt32();
+              var fromPort = br.ReadUInt16();
+              var toVip = br.ReadUInt32();
+              var toPort = br.ReadUInt16();
+              var length = br.ReadInt32();
+              var data = br.ReadBytes(length);
+              switch (command)
+              {
+                case 1://udp sendto
+                  Marshal.Copy(data, 0, new IntPtr(buff), length);
+                  from->Addr = fromVip;
+                  from->Port = fromPort;
+                  return length;
+              }
+            }
+            DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), from->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
+          }
         }
         else if (ret < 0)
         {
@@ -433,11 +458,11 @@ namespace YTY.HookTest
         var ret = DllImports.recvfrom(socket, buff, len, flags, from, fromLen);
         if (ret > 0)
         {
-          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, from->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), from->ToIPEndPoint(), new string(buff, 0, ret).Replace0());
         }
         else if (ret == 0)
         {
-          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, "gracefully closed");
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), "gracefully closed");
         }
         else
         {
@@ -459,7 +484,7 @@ namespace YTY.HookTest
         var s = _sockets[socket];
         if (s.ProtocolType == ProtocolType.Udp)
         {
-          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, s.RemoteEndPoint, new string(buff, 0, ret).Replace0());
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), s.RemoteEndPointToString(), new string(buff, 0, ret).Replace0());
         }
       }
       else
@@ -473,9 +498,11 @@ namespace YTY.HookTest
     {
       var s = _sockets[socket];
       var toEp = to->ToIPEndPoint();
-      if (s.ProtocolType == ProtocolType.Udp && toEp.Address.Equals(IPAddress.Broadcast))
+      if (s.ProtocolType == ProtocolType.Udp &&
+        (toEp.Address.Equals(IPAddress.Broadcast) || *((byte*)to + 4) == 10))
       {
-        if (s.LocalEndPoint == null)
+        if (!s.IsBound)
+        // call bind() to get local port
         {
           var paddr = stackalloc sockaddr_in[1];
           paddr->Family = (short)AddressFamily.InterNetwork;
@@ -485,22 +512,28 @@ namespace YTY.HookTest
           DllImports.bind(socket, paddr, 16);
           var paddrLen = stackalloc int[1];
           DllImports.getsockname(socket, paddr, paddrLen);
-          s.LocalEndPoint = paddr->ToIPEndPoint();
+          s.LocalVip = paddr->Addr;
+          s.LocalPort = paddr->Port;
         }
-        var bytes = new byte[toLen + 5];
-        using(var ms=new MemoryStream(bytes))
+        var bytes = new byte[len + 17];
+        using (var ms = new MemoryStream(bytes))
         using (var bw = new BinaryWriter(ms))
         {
           bw.Write((byte)1);
           bw.Write(_injectArgs.VirtualIp);
-          Marshal.Copy(new IntPtr(buff), bytes, (int)ms.Position, len);
+          bw.Write(s.LocalPort);
+          bw.Write(to->Addr);
+          bw.Write(to->Port);
+          bw.Write(len);
+          Marshal.Copy(new IntPtr(buff), bytes, 17, len);
         }
-        fixed(byte* pBuff=bytes)
+        fixed (byte* pBuff = bytes)
         {
-          to->Addr = 0x0100007f;
+          to->Addr = LOOPBACK;
           to->Port = _injectArgs.UdpProxyPort;
-          DebugOutput()(socket, s.ProtocolType, s.LocalEndPoint, toEp, to->ToIPEndPoint(),"Cmd=1", new string(buff, 0, len).Replace0());
-          return DllImports.sendto(socket, (sbyte*)pBuff, bytes.Length, flags, to, toLen);
+          DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), toEp, to->ToIPEndPoint(), "Cmd=1", new string(buff, 0, len).Replace0());
+          DllImports.sendto(socket, (sbyte*)pBuff, bytes.Length, flags, to, toLen);
+          return len;
         }
       }
       else
@@ -531,27 +564,23 @@ namespace YTY.HookTest
           Socket = s,
           ProtocolType = protocol,
         });
-        if (protocol == ProtocolType.Udp)
-        {
-          //DebugOutput()(s, protocol);
-        }
       }
       return s;
     }
 
-    private SocketError WSARecvFromH(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesRecvd,uint* pFlags, sockaddr_in* pFrom, int* pFromLen, IntPtr pOverlapped, IntPtr pCompletionRoutine)
+    private SocketError WSARecvFromH(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesRecvd, uint* pFlags, sockaddr_in* pFrom, int* pFromLen, IntPtr pOverlapped, IntPtr pCompletionRoutine)
     {
       var s = _sockets[socket];
-      var ret = DllImports.WSARecvFrom(socket, pBuffers, bufferCount, pNumberOfBytesRecvd, pFlags, pFrom, pFromLen,pOverlapped, pCompletionRoutine);
-      DebugOutput()(socket,s.ProtocolType,s.LocalEndPoint, pFrom->ToIPEndPoint(), new string(pBuffers->Buf, 0, (int) *pNumberOfBytesRecvd).Replace0());
+      var ret = DllImports.WSARecvFrom(socket, pBuffers, bufferCount, pNumberOfBytesRecvd, pFlags, pFrom, pFromLen, pOverlapped, pCompletionRoutine);
+      DebugOutput()(socket, s.ProtocolType, s.LocalEndPointToString(), pFrom->ToIPEndPoint(), new string(pBuffers->Buf, 0, (int)*pNumberOfBytesRecvd).Replace0());
       return ret;
     }
 
-    private SocketError WSASendToH(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesSent, uint flags,sockaddr_in* pTo, int toLen, IntPtr pOverlapped, IntPtr pCompletionRoutine)
+    private SocketError WSASendToH(int socket, WSABUF* pBuffers, uint bufferCount, uint* pNumberOfBytesSent, uint flags, sockaddr_in* pTo, int toLen, IntPtr pOverlapped, IntPtr pCompletionRoutine)
     {
       var s = _sockets[socket];
-      var ret = DllImports.WSASendTo(socket, pBuffers, bufferCount, pNumberOfBytesSent, flags, pTo, toLen, pOverlapped,pCompletionRoutine);
-      DebugOutput()(socket, s.LocalEndPoint, pTo->ToIPEndPoint(),new string(pBuffers->Buf, 0, (int) pBuffers->Len).Replace0());
+      var ret = DllImports.WSASendTo(socket, pBuffers, bufferCount, pNumberOfBytesSent, flags, pTo, toLen, pOverlapped, pCompletionRoutine);
+      DebugOutput()(socket, s.LocalEndPointToString(), pTo->ToIPEndPoint(), new string(pBuffers->Buf, 0, (int)pBuffers->Len).Replace0());
       return ret;
     }
 
