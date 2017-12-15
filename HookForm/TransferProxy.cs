@@ -13,21 +13,26 @@ namespace YTY.HookTest
 {
   public class TransferProxy
   {
+    private readonly TcpListener _tcpListener = new TcpListener(IPAddress.Loopback,0);
     private readonly TcpClient _tcpClient = new TcpClient();
     private readonly UdpClient _udpProxy = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
     private NetworkStream _stream;
     private BinaryReader _br;
     private BinaryWriter _bw;
     private ushort _udpProxyPort;
+    private ushort _tcpProxyPort;
     private uint _virtualIp;
 
     public ushort UdpProxyPort => _udpProxyPort;
+
+    public ushort TcpProxyPort => _tcpProxyPort;
 
     public uint VirtualIp => _virtualIp;
 
     public TransferProxy()
     {
       _udpProxyPort = (ushort)(_udpProxy.Client.LocalEndPoint as IPEndPoint).Port;
+      _tcpProxyPort = (ushort)(_tcpListener.LocalEndpoint as IPEndPoint).Port;
     }
 
     public void Start()
@@ -37,8 +42,10 @@ namespace YTY.HookTest
       _br = new BinaryReader(_stream);
       _bw = new BinaryWriter(_stream);
       _virtualIp = _br.ReadUInt32();
+      _tcpListener.Start();
       UdpProxyLoop();
       StreamLoop();
+      TcpProxyLoop();
     }
 
     public void Close()
@@ -96,6 +103,15 @@ namespace YTY.HookTest
             _udpProxy.SendAsync(packet, packet.Length, new IPEndPoint(IPAddress.Loopback, toPort));
             break;
         }
+      }
+    }
+
+    private async Task TcpProxyLoop()
+    {
+      while(true)
+      {
+        await _tcpListener.AcceptTcpClientAsync();
+
       }
     }
   }

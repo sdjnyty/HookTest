@@ -32,6 +32,7 @@ namespace YTY.HookTest
       {
         DllPath = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "age2x1injector.dll"),
         UdpProxyPort = _proxy.UdpProxyPort,
+        TcpProxyPort=_proxy.TcpProxyPort,
         VirtualIp=_proxy.VirtualIp,
       };
       Console.WriteLine(injectArgs.UdpProxyPort);
